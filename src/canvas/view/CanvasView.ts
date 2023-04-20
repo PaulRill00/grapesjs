@@ -194,9 +194,9 @@ export default class CanvasView extends ModuleView<Canvas> {
    * @return { {top: number, left: number, width: number, height: number} }
    */
   offset(el?: HTMLElement, opts: any = {}) {
-    const rect = getElRect(el);
+    const { noScroll, nativeBoundingRect } = opts;
+    const rect = getElRect(el, nativeBoundingRect);
     const docBody = el?.ownerDocument.body;
-    const { noScroll } = opts;
 
     return {
       top: rect.top + (noScroll ? 0 : docBody?.scrollTop ?? 0),

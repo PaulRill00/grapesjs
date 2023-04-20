@@ -234,7 +234,25 @@ const getModel = (el: any, $?: any) => {
   return model;
 };
 
-const getElRect = (el?: HTMLElement) => {
+const getBoundingRect = (el: HTMLElement) => {
+  const top = el.offsetTop;
+  const left = el.offsetLeft;
+  const width = el.offsetWidth;
+  const height = el.offsetHeight;
+
+  return {
+    top,
+    left,
+    width,
+    height,
+    bottom: top + height,
+    right: left + width,
+    x: left,
+    y: top,
+  };
+};
+
+const getElRect = (el?: HTMLElement, nativeBoundingRect = true) => {
   const def = {
     top: 0,
     left: 0,
@@ -247,11 +265,13 @@ const getElRect = (el?: HTMLElement) => {
   if (isTextNode(el)) {
     const range = document.createRange();
     range.selectNode(el);
-    rectText = range.getBoundingClientRect();
+    rectText = nativeBoundingRect ? range.getBoundingClientRect() : getBoundingRect(range as unknown as HTMLElement);
     range.detach();
   }
 
-  return rectText || (el.getBoundingClientRect ? el.getBoundingClientRect() : def);
+  return nativeBoundingRect
+    ? rectText || (el.getBoundingClientRect ? el.getBoundingClientRect() : def)
+    : rectText || getBoundingRect(el);
 };
 
 /**
