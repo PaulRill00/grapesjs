@@ -225,7 +225,7 @@ export default class CanvasView extends ModuleView<Canvas> {
       const frame = this.frame?.el;
       const winEl = el?.ownerDocument.defaultView;
       const frEl = winEl ? (winEl.frameElement as HTMLElement) : frame;
-      this.frmOff = this.offset(frEl || frame);
+      this.frmOff = this.offset(frEl || frame, { nativeBoundingRect: true });
     }
     return this.frmOff;
   }
@@ -256,10 +256,24 @@ export default class CanvasView extends ModuleView<Canvas> {
     const frameTop = opt.avoidFrameOffset ? 0 : frameOffset.top;
     const frameLeft = opt.avoidFrameOffset ? 0 : frameOffset.left;
 
-    const top = elRect.top * zoom + frameTop - canvasOffset.top + canvasEl.scrollTop;
-    const left = elRect.left * zoom + frameLeft - canvasOffset.left + canvasEl.scrollLeft;
-    const height = elRect.height * zoom;
-    const width = elRect.width * zoom;
+    const elTop = opt.avoidFrameZoom ? elRect.top : elRect.top * zoom;
+    const elLeft = opt.avoidFrameZoom ? elRect.left : elRect.left * zoom;
+
+    const top = opt.avoidFrameOffset ? elTop : (elTop + frameTop - canvasOffset.top + canvasEl.scrollTop);
+    const left = opt.avoidFrameOffset ? elLeft : (elLeft + frameLeft - canvasOffset.left + canvasEl.scrollLeft);
+    const height = opt.avoidFrameZoom ? elRect.height : elRect.height * zoom;
+    const width = opt.avoidFrameZoom ? elRect.width : elRect.width * zoom;
+
+    
+    // const frameTop = opt.avoidFrameOffset ? 0 : frameOffset.top;
+    // const frameLeft = opt.avoidFrameOffset ? 0 : frameOffset.left;
+    
+    // const top = elRect.top * zoom + frameTop - canvasOffset.top + canvasEl.scrollTop;
+    // const left = elRect.left * zoom + frameLeft - canvasOffset.left + canvasEl.scrollLeft;
+    // const height = elRect.height * zoom;
+    // const width = elRect.width * zoom;
+
+    // console.table({ name: 'elementPos', top, left, width, height })
 
     return { top, left, height, width, zoom, rect: elRect };
   }
@@ -305,9 +319,16 @@ export default class CanvasView extends ModuleView<Canvas> {
     const co = this.getCanvasOffset();
     const { noScroll } = opts;
 
+    // console.table({
+    //   cot: co.top,
+    //   col: co.left,
+    //   fot: fo.top,
+    //   fol: fo.left
+    // });
+
     return {
-      top: fo.top + (noScroll ? 0 : bEl.scrollTop) * zoom - co.top,
-      left: fo.left + (noScroll ? 0 : bEl.scrollLeft) * zoom - co.left,
+      top: fo.top + (noScroll ? 0 : bEl.scrollTop) - co.top,
+      left: fo.left + (noScroll ? 0 : bEl.scrollLeft) - co.left,
       width: co.width,
       height: co.height,
     };

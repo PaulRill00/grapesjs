@@ -1056,11 +1056,7 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @private
 	 */
 	offset(el: HTMLElement): {
-		top: number; /**
-		 * Returns offset viewer element
-		 * @returns {HTMLElement}
-		 * @private
-		 */
+		top: number;
 		left: number;
 		width: number;
 		height: number;
@@ -1081,20 +1077,13 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @private
 	 */
 	getElementPos(el: HTMLElement, opts?: any): {
-		top: number; /**
-		 * Get canvas rectangular data
-		 * @returns {Object}
-		 */
+		top: number;
 		left: number;
 		height: number;
 		width: number;
 		zoom: any;
 		rect: {
-			top: number; /**
-			 * Returns offset viewer element
-			 * @returns {HTMLElement}
-			 * @private
-			 */
+			top: number;
 			left: number;
 			width: number;
 			height: number;
@@ -1181,7 +1170,7 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @return {Object}
 	 * @private
 	 */
-	getMouseRelativeCanvas(ev: MouseEvent, opts: any): {
+	getMouseRelativeCanvas(ev: MouseEvent): {
 		y: number;
 		x: number;
 	};
@@ -1229,7 +1218,7 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @example
 	 * canvas.setZoom(50); // set zoom to 50%
 	 */
-	setZoom(value: string): this;
+	setZoom(value: number): this;
 	/**
 	 * Get canvas zoom value
 	 * @returns {Number}
@@ -3760,6 +3749,7 @@ export interface IComponent extends ExtractMethods<Component> {
  * @property {Boolean} [highlightable=true] It can be highlighted with 'dotted' borders if true. Default: `true`
  * @property {Boolean} [copyable=true] True if it's possible to clone the component. Default: `true`
  * @property {Boolean} [resizable=false] Indicates if it's possible to resize the component. It's also possible to pass an object as [options for the Resizer](https://github.com/GrapesJS/grapesjs/blob/master/src/utils/Resizer.js). Default: `false`
+ * @property {Boolean} [rotatable=false] Indicates if it's possible to rotate the component. Default: `false`
  * @property {Boolean} [editable=false] Allow to edit the content of the component (used on Text components). Default: `false`
  * @property {Boolean} [layerable=true] Set to `false` if you need to hide the component inside Layers. Default: `true`
  * @property {Boolean} [selectable=true] Allow component to be selected when clicked. Default: `true`
@@ -8991,9 +8981,236 @@ declare class Sorter extends View {
 	 * */
 	rollback(e: any): void;
 }
+export type RectDim = {
+	w: number;
+	h: number;
+	t: number;
+	l: number;
+	r: number;
+};
+export type BoundingRect = {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+};
+export type CallbackOptions = {
+	docs: any;
+	config: any;
+	el: HTMLElement;
+	rotator: Rotator;
+};
+export interface RotatorOptions {
+	/**
+	 * Function which returns custom X and Y coordinates of the mouse.
+	 */
+	mousePosFetcher?: (ev: MouseEvent) => Position;
+	/**
+	 * Indicates custom target updating strategy.
+	 */
+	updateTarget?: (el: HTMLElement, rect: RectDim, opts: any) => void;
+	/**
+	 * Function which gets HTMLElement as an arg and returns it relative position
+	 */
+	posFetcher?: (el: HTMLElement, opts: any) => BoundingRect;
+	/**
+	 * On rotate start callback.
+	 */
+	onStart?: (ev: Event, opts: CallbackOptions) => void;
+	/**
+	 * On rotate move callback.
+	 */
+	onMove?: (ev: Event) => void;
+	/**
+	 * On rotate end callback.
+	 */
+	onEnd?: (ev: Event, opts: CallbackOptions) => void;
+	/**
+	 * On container update callback.
+	 */
+	onUpdateContainer?: (opts: any) => void;
+	/**
+	 * Rotate unit step.
+	 * @default 1
+	 */
+	step?: number;
+	/**
+	 * Minimum dimension.
+	 * @default 10
+	 */
+	minDim?: number;
+	/**
+	 * Maximum dimension.
+	 * @default Infinity
+	 */
+	maxDim?: number;
+	/**
+	 * If true, will override unitHeight and unitWidth, on start, with units
+	 * from the current focused element (currently used only in SelectComponent).
+	 * @default true
+	 */
+	currentUnit?: boolean;
+	/**
+	 * With this option enabled the mousemove event won't be altered when the pointer comes over iframes.
+	 * @default false
+	 */
+	silentFrames?: boolean;
+	/**
+	 * If true the container of handlers won't be updated.
+	 * @default false
+	 */
+	avoidContainerUpdate?: boolean;
+	/**
+	 * Class prefix.
+	 */
+	prefix?: string;
+	/**
+	 * Where to append rotate container (default body element).
+	 */
+	appendTo?: HTMLElement;
+	/**
+	 * Offset before snap to guides.
+	 * @default 5
+	 */
+	snapOffset?: number;
+	/**
+	 * Offset before snap to guides.
+	 * @default 45
+	 */
+	snapPoints?: number;
+}
+declare class Rotator {
+	defOpts: RotatorOptions;
+	opts: RotatorOptions;
+	container?: HTMLElement;
+	handler?: HTMLElement;
+	el?: HTMLElement;
+	selectedHandler?: HTMLElement;
+	handlerAttr?: string;
+	center?: Position;
+	startDim?: RectDim;
+	rectDim?: RectDim;
+	delta?: Position;
+	startPos?: Position;
+	currentPos?: Position;
+	docs?: Document[];
+	snapOffset?: number;
+	snapPoints?: number;
+	mousePosFetcher?: RotatorOptions["mousePosFetcher"];
+	updateTarget?: RotatorOptions["updateTarget"];
+	posFetcher?: RotatorOptions["posFetcher"];
+	onStart?: RotatorOptions["onStart"];
+	onMove?: RotatorOptions["onMove"];
+	onEnd?: RotatorOptions["onEnd"];
+	onUpdateContainer?: RotatorOptions["onUpdateContainer"];
+	/**
+	 * Init the Rotator with options
+	 * @param  {Object} options
+	 */
+	constructor(opts?: RotatorOptions);
+	/**
+	 * Get current connfiguration options
+	 * @return {Object}
+	 */
+	getConfig(): RotatorOptions;
+	/**
+	 * Setup options
+	 * @param {Object} options
+	 */
+	setOptions(options?: Partial<RotatorOptions>, reset?: boolean): void;
+	/**
+	 * Setup rotator
+	 */
+	setup(): void;
+	/**
+	 * Toggle iframes pointer event
+	 * @param {Boolean} silent If true, iframes will be silented
+	 */
+	toggleFrames(silent?: boolean): void;
+	/**
+	 * Detects if the passed element is a rotate handler
+	 * @param  {HTMLElement} el
+	 * @return {Boolean}
+	 */
+	isHandler(el: HTMLElement): boolean;
+	/**
+	 * Returns the focused element
+	 * @return {HTMLElement}
+	 */
+	getFocusedEl(): HTMLElement | undefined;
+	/**
+	 * Returns the parent of the focused element
+	 * @return {HTMLElement}
+	 */
+	getParentEl(): HTMLElement | null | undefined;
+	/**
+	 * Returns documents
+	 */
+	getDocumentEl(): Document[];
+	/**
+	 * Return element position
+	 * @param  {HTMLElement} el
+	 * @param  {Object} opts Custom options
+	 * @return {Object}
+	 */
+	getElementPos(el: HTMLElement, opts?: {}): BoundingRect;
+	/**
+	 * Return element rotation
+	 * @param   {HTMLElement} el
+	 * @returns {number} rotation
+	 */
+	getElementRotation(el: HTMLElement): number;
+	/**
+	 * Focus rotator on the element, attaches handlers to it
+	 * @param {HTMLElement} el
+	 */
+	focus(el: HTMLElement): void;
+	/**
+	 * Blur from element
+	 */
+	blur(): void;
+	/**
+	 * Start rotating
+	 * @param  {Event} e
+	 */
+	start(ev: Event): void;
+	/**
+	 * While rotating
+	 * @param  {Event} e
+	 */
+	move(ev: PointerEvent | Event): void;
+	/**
+	 * Stop rotating
+	 * @param  {Event} e
+	 */
+	stop(e: Event): void;
+	/**
+	 * Update rect
+	 */
+	updateRect(store: boolean): void;
+	updateContainer(opt?: {
+		forceShow?: boolean;
+	}): void;
+	/**
+	 * Handle ESC key
+	 * @param  {Event} e
+	 */
+	handleKeyDown(e: Event): void;
+	/**
+	 * Handle mousedown to check if it's possible to start rotating
+	 * @param  {Event} e
+	 */
+	handleMouseDown(e: Event): void;
+	/**
+	 * All positioning logic
+	 * @return {Object}
+	 */
+	calc(data: Rotator): RectDim | undefined;
+}
 declare class UtilsModule extends Module {
 	Sorter: typeof Sorter;
 	Resizer: typeof Resizer;
+	Rotator: typeof Rotator;
 	Dragger: typeof Dragger;
 	helpers: {
 		isDef: (value: any) => boolean;
@@ -9016,7 +9233,7 @@ declare class UtilsModule extends Module {
 		upFirst: (value: string) => string;
 		matches: any;
 		getModel: (el: any, $?: any) => any;
-		getElRect: (el?: HTMLElement | undefined) => {
+		getElRect: (el?: HTMLElement | undefined, nativeBoundingRect?: boolean) => {
 			top: number;
 			left: number;
 			width: number;

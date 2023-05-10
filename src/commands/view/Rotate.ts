@@ -1,4 +1,3 @@
-import Resizer from '../../utils/Resizer';
 import Rotator from '../../utils/Rotator';
 import { CommandObject } from './CommandAbstract';
 
@@ -11,7 +10,7 @@ export default {
       appendTo: canvas.getResizerEl(),
       prefix: editor.getConfig().stylePrefix,
       posFetcher: canvasView.getElementPos.bind(canvasView),
-      mousePosFetcher: canvas.getMouseRelativePos,
+      mousePosFetcher: canvas.getMouseRelativeCanvas.bind(canvas),
       ...(opt.options || {}),
     };
     let { canvasRotator } = this;
@@ -29,7 +28,6 @@ export default {
   },
 
   stop() {
-    console.log('Stop rotate command');
     this.canvasRotator?.blur();
   },
 } as CommandObject<{ options?: {}; forceNew?: boolean; el: HTMLElement }, { canvasRotator?: Rotator }>;

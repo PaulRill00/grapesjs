@@ -538,8 +538,6 @@ export default {
 
           let currentRotation = computedStyle.getPropertyValue('rotate')?.replace('deg', '') ?? '0';
 
-          rotator.startDim.w = parseFloat(currentWidth);
-          rotator.startDim.h = parseFloat(currentHeight);
           rotator.startDim.r = parseFloat(currentRotation);
           showOffsets = false;
         },

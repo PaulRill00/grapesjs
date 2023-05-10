@@ -457,7 +457,7 @@ export default class Resizer {
     const config = this.opts || {};
     const mouseFetch = this.mousePosFetcher;
     const attrName = 'data-' + config.prefix + 'handler';
-    const rect = this.getElementPos(el!, { target: 'el' });
+    const rect = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true, avoidFrameOffset: true });
     const parentRect = this.getElementPos(parentEl!);
     const target = e.target as HTMLElement;
     this.handlerAttr = target.getAttribute(attrName)!;
@@ -486,6 +486,10 @@ export default class Resizer {
       w: parentRect.width,
       h: parentRect.height,
     };
+
+    console.table( { name: 'startPos', ...this.startPos });
+    console.table( { name: 'startDim', ...this.startDim });
+    console.table( { name: 'parentDim', ...this.parentDim });
 
     // Listen events
     const docs = this.getDocumentEl();

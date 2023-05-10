@@ -28,7 +28,7 @@ export interface RotatorOptions {
   /**
    * Function which returns custom X and Y coordinates of the mouse.
    */
-  mousePosFetcher?: (ev: Event) => Position;
+  mousePosFetcher?: (ev: MouseEvent) => Position;
 
   /**
    * Indicates custom target updating strategy.
@@ -137,19 +137,17 @@ export default class Rotator {
   container?: HTMLElement;
   handler?: HTMLElement;
   el?: HTMLElement;
-  clickedHandler?: HTMLElement;
   selectedHandler?: HTMLElement;
   handlerAttr?: string;
   center?: Position;
   startDim?: RectDim;
   rectDim?: RectDim;
-  parentDim?: RectDim;
   delta?: Position;
+  startPos?: Position;
   currentPos?: Position;
   docs?: Document[];
   snapOffset?: number;
   snapPoints?: number;
-  keys?: { shift: boolean; ctrl: boolean; alt: boolean };
   mousePosFetcher?: RotatorOptions['mousePosFetcher'];
   updateTarget?: RotatorOptions['updateTarget'];
   posFetcher?: RotatorOptions['posFetcher'];
@@ -333,18 +331,22 @@ export default class Rotator {
     e.preventDefault();
     e.stopPropagation();
     const el = this.el!;
-    const parentEl = this.getParentEl();
     const rotator = this;
     const config = this.opts || {};
-    const mouseFetch = this.mousePosFetcher;
     const attrName = 'data-' + config.prefix + 'handler';
     const rectRotation = this.getElementRotation(el!);
-    const rect = this.getElementPos(el!, { target: 'el' });
-    const parentRotation = this.getElementRotation(parentEl!);
-    const parentRect = this.getElementPos(parentEl!);
+    const rect = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true, });
     const target = e.target as HTMLElement;
     this.handlerAttr = target.getAttribute(attrName)!;
-    this.clickedHandler = target;
+
+    const mouseFetch = this.mousePosFetcher;
+    this.startPos = mouseFetch
+      ? mouseFetch(e)
+      : {
+          x: e.clientX,
+          y: e.clientY,
+        };
+
     this.startDim = {
       t: rect.top,
       l: rect.left,
@@ -359,18 +361,11 @@ export default class Rotator {
       h: rect.height,
       r: rectRotation,
     };
-    this.parentDim = {
-      t: parentRect.top,
-      l: parentRect.left,
-      w: parentRect.width,
-      h: parentRect.height,
-      r: parentRotation,
-    };
 
-    const boundingRect = el.getBoundingClientRect();
+    const dims = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true, avoidFrameOffset: true });
     this.center = {
-      x: boundingRect.left + boundingRect.width / 2,
-      y: boundingRect.top + boundingRect.height / 2,
+      x: dims.left + (dims.width / 2),
+      y: dims.top + (dims.height / 2),
     };
 
     // Listen events
@@ -400,21 +395,19 @@ export default class Rotator {
         };
     this.currentPos = currentPos;
 
-    const R = Math.max(this.startDim!.w, this.startDim!.h);
+    const dX = this.startPos!.x - this.center!.x;
+    const dY = this.startPos!.y - this.center!.y;
+    const R = Math.sqrt(dX * dX + dY * dY);
+
     const vX = currentPos.x - this.center!.x;
     const vY = currentPos.y - this.center!.y;
     const magV = Math.sqrt(vX * vX + vY * vY);
-    const aX = this.center!.x + (vX / magV) * R;
-    const aY = this.center!.y + (vY / magV) * R;
+    const aX = this.center!.x + vX / magV * R;
+    const aY = this.center!.y + vY / magV * R;
 
     this.delta = {
       x: aX - this.center!.x,
       y: aY - this.center!.y,
-    };
-    this.keys = {
-      shift: e.shiftKey,
-      ctrl: e.ctrlKey,
-      alt: e.altKey,
     };
 
     this.rectDim = this.calc(this);
@@ -535,7 +528,8 @@ export default class Rotator {
 
     if (!data) return;
 
-    const angle = Math.atan2(deltaY - box.h / 2, deltaX) * (180 / Math.PI) + 90;
+    const angle = (Math.atan2(deltaY, deltaX) * 180 / Math.PI) + 90;
+    
     box.r = angle;
 
     const snappingPoints = this.defOpts.snapPoints!;
