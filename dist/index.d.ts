@@ -1269,11 +1269,7 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @example
 	 * canvas.setZoom(50); // set zoom to 50%
 	 */
-<<<<<<< HEAD
-	setZoom(value: number): this;
-=======
 	setZoom(value: number | string): this;
->>>>>>> c223a0ca9e1a1f2ea754e809f67be2ea2b86e035
 	/**
 	 * Get canvas zoom value
 	 * @returns {Number}
