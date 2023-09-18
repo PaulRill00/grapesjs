@@ -1,11 +1,22 @@
-import { bindAll, isString, debounce, isUndefined } from 'underscore';
-import { appendVNodes, append, createEl, createCustomEvent, motionsEv } from '../../utils/dom';
-import { on, off, setViewEl, hasDnd, getPointerEvent } from '../../utils/mixins';
+import { bindAll, debounce, isString, isUndefined } from 'underscore';
 import { ModuleView } from '../../abstract';
+import { BoxRect } from '../../common';
 import CssRulesView from '../../css_composer/view/CssRulesView';
+import ComponentWrapperView from '../../dom_components/view/ComponentWrapperView';
 import Droppable from '../../utils/Droppable';
-import Frame from '../model/Frame';
+import {
+  append,
+  appendVNodes,
+  createCustomEvent,
+  createEl,
+  getPointerEvent,
+  motionsEv,
+  off,
+  on,
+} from '../../utils/dom';
+import { hasDnd, setViewEl } from '../../utils/mixins';
 import Canvas from '../model/Canvas';
+import Frame from '../model/Frame';
 import FrameWrapView from './FrameWrapView';
 
 export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
@@ -19,6 +30,7 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
   }
 
   dragging = false;
+  loaded = false;
   droppable?: Droppable;
   rect?: DOMRect;
 
@@ -26,14 +38,13 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
   lastMaxHeight = 0;
   private jsContainer?: HTMLElement;
   private tools: { [key: string]: HTMLElement } = {};
-  private wrapper?: any;
+  private wrapper?: ComponentWrapperView;
   private frameWrapView?: FrameWrapView;
 
   constructor(model: Frame, view?: FrameWrapView) {
     super({ model });
     bindAll(this, 'updateClientY', 'stopAutoscroll', 'autoscroll', '_emitUpdate');
-    const { el, em } = this;
-    //el = em.config.el
+    const { el } = this;
     //@ts-ignore
     this.module._config = {
       ...(this.config || {}),
@@ -41,7 +52,6 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
       frameView: this,
       //canvasView: view?.cv
     };
-    //console.log(this.config)
     this.frameWrapView = view;
     this.showGlobalTools = debounce(this.showGlobalTools.bind(this), 50);
     const cvModel = this.getCanvasModel();
@@ -49,6 +59,27 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
     this.listenTo(cvModel, 'change:styles', this.renderStyles);
     model.view = this;
     setViewEl(el, this);
+  }
+
+  getBoxRect(): BoxRect {
+    const { el, module } = this;
+    const canvasView = module.getCanvasView();
+    const coords = module.getCoords();
+    const frameRect = el.getBoundingClientRect();
+    const canvasRect = canvasView.getCanvasOffset();
+    const vwDelta = canvasView.getViewportDelta();
+    const zoomM = module.getZoomMultiplier();
+    const x = (frameRect.x - canvasRect.left - vwDelta.x - coords.x) * zoomM;
+    const y = (frameRect.y - canvasRect.top - vwDelta.y - coords.y) * zoomM;
+    const width = frameRect.width * zoomM;
+    const height = frameRect.height * zoomM;
+
+    return {
+      x,
+      y,
+      width,
+      height,
+    };
   }
 
   /**
@@ -179,10 +210,9 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
   }
 
   remove(...args: any) {
-    const wrp = this.wrapper;
     this._toggleEffects(false);
     this.tools = {};
-    wrp && wrp.remove();
+    this.wrapper?.remove();
     ModuleView.prototype.remove.apply(this, args);
     return this;
   }
@@ -227,6 +257,7 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
         toolsEl.style.opacity = '0';
         this.showGlobalTools();
         win.scrollTo(0, nextTop);
+        canvas.spots.refreshDbn();
       }
 
       requestAnimationFrame(this.autoscroll);
@@ -256,9 +287,10 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
   }
 
   render() {
-    const { $el, ppfx } = this;
+    const { $el, ppfx, em } = this;
     $el.attr({ class: `${ppfx}frame` });
     this.renderScripts();
+    em.trigger('frame:render', this);
     return this;
   }
 
@@ -331,6 +363,7 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
     const doc = this.getDoc();
     const body = this.getBody();
     const win = this.getWindow();
+    const hasAutoHeight = model.hasAutoHeight();
     const conf = em.config;
     //@ts-ignore This could be used inside component-related scripts to check if the
     // script is executed inside the editor.
@@ -344,8 +377,10 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
       `<style>
       ${conf.baseCss || config.frameStyle || ''}
 
+      ${hasAutoHeight ? 'body { overflow: hidden }' : ''}
+
       [data-gjs-type="wrapper"] {
-        min-height: 100vh;
+        ${!hasAutoHeight ? 'min-height: 100vh;' : ''}
         padding-top: 0.001em;
       }
 
@@ -407,17 +442,17 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
       ${conf.protectedCss || ''}
     </style>`
     );
-    const component = model.getComponent();
+    const { root } = model;
     const { view } = em.Components.getType('wrapper')!;
     this.wrapper = new view({
-      model: component,
+      model: root,
       config: {
-        ...component.config,
+        ...root.config,
         em,
         frameView: this,
       },
     }).render();
-    append(body, this.wrapper?.el);
+    append(body, this.wrapper?.el!);
     append(
       body,
       new CssRulesView({
@@ -444,17 +479,20 @@ export default class FrameView extends ModuleView<Frame, HTMLIFrameElement> {
       { event: 'keydown keyup keypress', class: 'KeyboardEvent' },
       { event: 'mousedown mousemove mouseup', class: 'MouseEvent' },
       { event: 'pointerdown pointermove pointerup', class: 'PointerEvent' },
-      { event: 'wheel', class: 'WheelEvent' },
+      { event: 'wheel', class: 'WheelEvent', opts: { passive: !config.infiniteCanvas } },
     ].forEach(obj =>
       obj.event.split(' ').forEach(event => {
-        doc.addEventListener(event, ev => this.el.dispatchEvent(createCustomEvent(ev, obj.class)));
+        doc.addEventListener(event, ev => this.el.dispatchEvent(createCustomEvent(ev, obj.class)), obj.opts);
       })
     );
 
     this._toggleEffects(true);
+
     if (hasDnd(em)) {
       this.droppable = new Droppable(em, this.wrapper?.el);
     }
+
+    this.loaded = true;
     model.trigger('loaded');
   }
 

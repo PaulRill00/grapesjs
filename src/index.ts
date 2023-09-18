@@ -6,7 +6,7 @@ import $ from './utils/cash-dom';
 import polyfills from './utils/polyfills';
 
 interface InitEditorConfig extends EditorConfig {
-  grapesjs?: typeof GrapesJS;
+  grapesjs?: typeof grapesjs;
 }
 
 polyfills();
@@ -26,12 +26,14 @@ export const usePlugin = <P extends Plugin<any> | string>(plugin: P, opts?: P ex
   };
 };
 
-const GrapesJS = {
+export const grapesjs = {
   $,
 
   editors,
 
   plugins,
+
+  usePlugin,
 
   // @ts-ignore Will be replaced on build
   version: __GJS_VERSION__,
@@ -98,6 +100,8 @@ export type { default as Blocks } from './block_manager/model/Blocks';
 export type { default as Categories } from './block_manager/model/Categories';
 export type { default as Category } from './block_manager/model/Category';
 export type { default as Canvas } from './canvas/model/Canvas';
+export type { default as CanvasSpot } from './canvas/model/CanvasSpot';
+export type { default as CanvasSpots } from './canvas/model/CanvasSpots';
 export type { default as Frame } from './canvas/model/Frame';
 export type { default as Frames } from './canvas/model/Frames';
 export type { default as CssRule } from './css_composer/model/CssRule';
@@ -121,7 +125,15 @@ export type { default as Selectors } from './selector_manager/model/Selectors';
 export type { default as State } from './selector_manager/model/State';
 export type { default as Properties } from './style_manager/model/Properties';
 export type { default as Property } from './style_manager/model/Property';
+export type { default as PropertyRadio } from './style_manager/model/PropertyRadio';
+export type { default as PropertySelect } from './style_manager/model/PropertySelect';
+export type { default as PropertyNumber } from './style_manager/model/PropertyNumber';
+export type { default as PropertySlider } from './style_manager/model/PropertySlider';
+export type { default as PropertyComposite } from './style_manager/model/PropertyComposite';
+export type { default as PropertyStack } from './style_manager/model/PropertyStack';
+export type { default as Sector } from './style_manager/model/Sector';
+export type { default as Sectors } from './style_manager/model/Sectors';
 export type { default as Trait } from './trait_manager/model/Trait';
 export type { default as Traits } from './trait_manager/model/Traits';
 
-export default GrapesJS;
+export default grapesjs;

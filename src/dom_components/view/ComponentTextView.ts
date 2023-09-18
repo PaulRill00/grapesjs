@@ -2,10 +2,11 @@ import { bindAll } from 'underscore';
 import { ObjectAny } from '../../common';
 import RichTextEditorModule from '../../rich_text_editor';
 import RichTextEditor from '../../rich_text_editor/model/RichTextEditor';
-import { getModel, off, on } from '../../utils/mixins';
+import { off, on } from '../../utils/dom';
+import { getModel } from '../../utils/mixins';
 import Component from '../model/Component';
-import { getComponentIds } from '../model/Components';
 import ComponentText from '../model/ComponentText';
+import { getComponentIds } from '../model/Components';
 import { ComponentDefinition } from '../model/types';
 import ComponentView from './ComponentView';
 
@@ -187,7 +188,7 @@ export default class ComponentTextView extends ComponentView {
         cmps.forEach(cmp => {
           if (cmp === textModel) {
             const type = 'textnode';
-            const cnt = cmp.get('content') || '';
+            const cnt = cmp.content;
             newCmps.push({ type, content: cnt.slice(0, offset) });
             newCmps.push(content);
             newCmps.push({ type, content: cnt.slice(offset) });

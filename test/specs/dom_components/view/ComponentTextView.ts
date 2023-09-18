@@ -1,14 +1,16 @@
 import ComponentTextView from '../../../../src/dom_components/view/ComponentTextView';
 import Component from '../../../../src/dom_components/model/Component';
 import Editor from '../../../../src/editor/model/Editor';
+import { CustomRTE } from '../../../../src/rich_text_editor/config/config';
 
 describe('ComponentTextView', () => {
-  let fixtures;
+  let fixtures: HTMLElement;
   let model;
-  let view;
-  let el;
+  let view: ComponentTextView;
+  let el: HTMLElement;
   let dcomp;
-  let compOpts;
+  let compOpts: any;
+  let compViewOpts: any;
   let em: Editor;
 
   beforeEach(() => {
@@ -20,13 +22,13 @@ describe('ComponentTextView', () => {
       domc: dcomp,
     };
     model = new Component({}, compOpts);
-    view = new ComponentTextView({
-      model,
-      // @ts-ignore
+    compViewOpts = {
       config: { ...em.config, em },
-    });
+      model,
+    };
+    view = new ComponentTextView(compViewOpts);
     document.body.innerHTML = '<div id="fixtures"></div>';
-    fixtures = document.body.querySelector('#fixtures');
+    fixtures = document.body.querySelector('#fixtures')!;
     el = view.render().el;
     fixtures.appendChild(el);
   });
@@ -50,18 +52,22 @@ describe('ComponentTextView', () => {
 
   test('Init with content', () => {
     model = new Component({ content: 'test' }, compOpts);
-    view = new ComponentTextView({ model });
+    view = new ComponentTextView({ ...compViewOpts, model });
     fixtures.appendChild(view.render().el);
     expect(view.el.innerHTML).toEqual('test');
   });
 
   describe('.getContent', () => {
-    let fakeRte, fakeRteContent, fakeChildContainer;
+    let fakeRte: CustomRTE<any>;
+    let fakeRteContent = '';
+    let fakeChildContainer: InnerHTML;
 
     beforeEach(() => {
       fakeRteContent = 'fakeRteContent';
 
       fakeRte = {
+        enable() {},
+        disable() {},
         getContent: jest.fn(() => fakeRteContent),
       };
 
@@ -74,7 +80,7 @@ describe('ComponentTextView', () => {
     });
 
     it('should get content from active RTE if available', async () => {
-      view.activeRte = {};
+      view.activeRte = {} as any;
       expect(await view.getContent()).toEqual(fakeRteContent);
       expect(fakeRte.getContent).toHaveBeenCalled();
     });
@@ -82,8 +88,8 @@ describe('ComponentTextView', () => {
     it("should get child container's `innerHTML` if active RTE is not available or if it has no `getContent` function", async () => {
       expect(await view.getContent()).toEqual(fakeChildContainer.innerHTML);
 
-      fakeRte.getContent = null;
-      view.activeRte = {};
+      delete fakeRte.getContent;
+      view.activeRte = {} as any;
       expect(await view.getContent()).toEqual(fakeChildContainer.innerHTML);
 
       expect(view.getChildrenContainer).toHaveBeenCalledTimes(2);

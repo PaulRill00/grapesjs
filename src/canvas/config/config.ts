@@ -1,4 +1,5 @@
 import Component from '../../dom_components/model/Component';
+import { CanvasSpotBuiltInTypes } from '../model/CanvasSpot';
 
 export interface CanvasConfig {
   stylePrefix?: string;
@@ -61,6 +62,33 @@ export interface CanvasConfig {
    * This option allows to customize, by a selector, which element should not be considered textable.
    */
   notTextable?: string[];
+
+  /**
+   * By default, the editor allows to drop external elements by relying on the native HTML5
+   * drag & drop API (eg. like a D&D of an image file from your desktop).
+   * If you want to customize how external elements are interpreted by the editor, you can rely
+   * on `canvas:dragdata` event, eg. https://github.com/GrapesJS/grapesjs/discussions/3849
+   * @default true
+   */
+  allowExternalDrop?: boolean;
+
+  /**
+   * Disable the rendering of built-in canvas spots.
+   *
+   * Read here for more information about [Canvas Spots](https://grapesjs.com/docs/modules/Canvas.html#canvas-spots).
+   * @example
+   * // Disable only the hover type spot
+   * customSpots: { hover: true },
+   *
+   * // Disable all built-in spots
+   * customSpots: true,
+   */
+  customSpots?: boolean | Partial<Record<CanvasSpotBuiltInTypes, boolean>>;
+
+  /**
+   * Experimental: enable infinite canvas.
+   */
+  infiniteCanvas?: boolean;
 }
 
 const config: CanvasConfig = {
@@ -78,6 +106,7 @@ const config: CanvasConfig = {
     * ::-webkit-scrollbar { width: 10px }
   `,
   notTextable: ['button', 'a', 'input[type=checkbox]', 'input[type=radio]'],
+  allowExternalDrop: true,
 };
 
 export default config;

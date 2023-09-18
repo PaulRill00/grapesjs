@@ -49,9 +49,21 @@ import { createId } from '../utils/mixins';
 import { ModuleModel } from '../abstract';
 import { ItemManagerModule, ModuleConfig } from '../abstract/Module';
 import Pages from './model/Pages';
-import Page from './model/Page';
+import Page, { PageProperties } from './model/Page';
 import EditorModel from '../editor/model/Editor';
 import ComponentWrapper from '../dom_components/model/ComponentWrapper';
+import { AddOptions, RemoveOptions, SetOptions } from '../common';
+
+interface SelectableOption {
+  /**
+   * Select the page.
+   */
+  select?: boolean;
+}
+
+interface AbortOption {
+  abort?: boolean;
+}
 
 export const evAll = 'page';
 export const evPfx = `${evAll}:`;
@@ -64,7 +76,7 @@ export const evPageRemove = `${evPfx}remove`;
 export const evPageRemoveBefore = `${evPageRemove}:before`;
 const chnSel = 'change:selected';
 const typeMain = 'main';
-const events = {
+const pageEvents = {
   all: evAll,
   select: evPageSelect,
   selectBefore: evPageSelectBefore,
@@ -80,6 +92,7 @@ export interface PageManagerConfig extends ModuleConfig {
 }
 
 export default class PageManager extends ItemManagerModule<PageManagerConfig, Pages> {
+  events!: typeof pageEvents;
   storageKey = 'pages';
 
   get pages() {
@@ -108,7 +121,7 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
    * @param {Object} config Configurations
    */
   constructor(em: EditorModel) {
-    super(em, 'PageManager', new Pages([], em), events);
+    super(em, 'PageManager', new Pages([], em), pageEvents);
     bindAll(this, '_onPageChange');
     const model = new ModuleModel({ _undo: true } as any);
     this.model = model;
@@ -123,9 +136,10 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
   }
 
   onLoad() {
-    const { pages } = this;
+    const { pages, config, em } = this;
     const opt = { silent: true };
-    pages.add(this.config.pages?.map(page => new Page(page, { em: this.em, config: this.config })) || [], opt);
+    const configPages = config.pages?.map(page => new Page(page, { em, config })) || [];
+    pages.add(configPages, opt);
     const mainPage = !pages.length ? this.add({ type: typeMain }, opt) : this.getMain();
     mainPage && this.select(mainPage, opt);
   }
@@ -159,10 +173,7 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
    *  component: '<div class="my-class">My element</div>', // or a JSON of components
    * });
    */
-  add(
-    props: any, //{ id?: string; styles: string; component: string },
-    opts: any = {}
-  ) {
+  add(props: PageProperties, opts: AddOptions & SelectableOption & AbortOption = {}) {
     const { em } = this;
     props.id = props.id || this._createId();
     const add = () => {
@@ -184,7 +195,7 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
    * const somePage = pageManager.get('page-id');
    * pageManager.remove(somePage);
    */
-  remove(page: string | Page, opts: any = {}) {
+  remove(page: string | Page, opts: RemoveOptions & AbortOption = {}) {
     const { em } = this;
     const pg = isString(page) ? this.get(page) : page;
     const rm = () => {
@@ -240,7 +251,7 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
    * const somePage = pageManager.get('page-id');
    * pageManager.select(somePage);
    */
-  select(page: string | Page, opts = {}) {
+  select(page: string | Page, opts: SetOptions = {}) {
     const pg = isString(page) ? this.get(page) : page;
     if (pg) {
       this.em.trigger(evPageSelectBefore, pg, opts);
@@ -272,7 +283,9 @@ export default class PageManager extends ItemManagerModule<PageManagerConfig, Pa
   }
 
   load(data: any) {
-    return this.loadProjectData(data, { all: this.pages, reset: true });
+    const result = this.loadProjectData(data, { all: this.pages, reset: true });
+    this.pages.forEach(page => page.getFrames().initRefs());
+    return result;
   }
 
   _createId() {

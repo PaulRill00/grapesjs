@@ -4,6 +4,8 @@ import Component from '../../dom_components/model/Component';
 import EditorModel from '../../editor/model/Editor';
 import { capitalize, camelCase, hasWin } from '../../utils/mixins';
 import Sector from './Sector';
+import PropertyComposite from './PropertyComposite';
+import { StyleProps } from '../../domain_abstract/model/StyleableModel';
 
 /** @private */
 export interface PropertyProps {
@@ -69,8 +71,6 @@ export interface PropertyProps {
   parentTarget?: any;
   __p?: any;
 }
-
-export type StyleProps = Record<string, string>;
 
 export type OptionsUpdate = {
   partial?: boolean;
@@ -146,12 +146,12 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
     Property.callInit(this, props, opts);
   }
 
-  __getParentProp() {
+  __getParentProp<T = PropertyComposite>(): T {
     // @ts-ignore
     return this.collection?.opts?.parentProp;
   }
 
-  __upTargets(p: this, opts: any = {}) {
+  __upTargets(p: this, opts: any = {}): void {
     const { em } = this;
     const sm = em.Styles;
     const name = this.getName();
@@ -185,7 +185,6 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
     const { partial, ...rest } = opts;
     // @ts-ignore
     props.__p = !!(rest.avoidStore || partial);
-    // @ts-ignore
     return this.set(props, { ...rest, avoidStore: props.__p });
   }
 
@@ -278,7 +277,7 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
    * console.log(property.getStyle());
    * // { color: 'red' };
    */
-  getStyle(opts: OptionsStyle = {}) {
+  getStyle(opts: OptionsStyle = {}): StyleProps {
     const name = this.getName();
     const key = opts.camelCase ? camelCase(name) : name;
     return { [key]: this.__getFullValue(opts) };
@@ -329,7 +328,7 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
    * Indicates if the current value comes directly from the selected target and so can be cleared.
    * @returns {Boolean}
    */
-  canClear() {
+  canClear(): boolean {
     const parent = this.getParent();
     return parent ? parent.__canClearProp(this) : this.hasValue({ noParent: true });
   }
@@ -339,7 +338,7 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
    * @returns {[Property]|null}
    */
   getParent() {
-    return this.__getParentProp() || null;
+    return this.__getParentProp();
   }
 
   /**
@@ -370,7 +369,6 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
     const avoidStore = !complete;
     // @ts-ignore
     !avoidStore && this.set({ value: undefined }, { avoidStore, silent: true });
-    // @ts-ignore
     this.set(parsed, { avoidStore, ...opts });
   }
 
@@ -429,7 +427,6 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
 
     if (opts.numeric) {
       const num = parseFloat(result.value);
-      // @ts-ignore
       result.unit = result.value.replace(num, '');
       result.value = num;
     }
@@ -489,7 +486,7 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
   getFullValue(val?: string, opts: any = {}) {
     const fn = this.get('functionName');
     const def = this.getDefaultValue();
-    let value = isUndefined(val) ? this.get('value') : val;
+    let value = isUndefined(val) ? (this.get('value') as string) : val;
     const hasValue = !isUndefined(value) && value !== '';
 
     if (value && def && value === def) {
@@ -497,7 +494,6 @@ export default class Property<T extends Record<string, any> = PropertyProps> ext
     }
 
     if (fn && hasValue) {
-      // @ts-ignore
       const fnParameter = fn === 'url' ? `'${value.replace(/'|"/g, '')}'` : value;
       value = `${fn}(${fnParameter})`;
     }
@@ -602,8 +598,3 @@ Property.callParentInit = function (property, ctx, props, opts = {}) {
 Property.callInit = function (context, props, opts: any = {}) {
   !opts.skipInit && context.init(props, opts);
 };
-
-// @ts-ignore
-// Property.getDefaults = function () {
-//   return result(this.prototype, 'defaults');
-// };

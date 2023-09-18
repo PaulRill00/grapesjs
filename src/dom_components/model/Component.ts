@@ -12,7 +12,7 @@ import {
   keys,
 } from 'underscore';
 import { shallowDiff, capitalize, isEmptyObj, isObject, toLowerCase } from '../../utils/mixins';
-import StyleableModel from '../../domain_abstract/model/StyleableModel';
+import StyleableModel, { StyleProps } from '../../domain_abstract/model/StyleableModel';
 import { Model } from 'backbone';
 import Components from './Components';
 import Selector from '../../selector_manager/model/Selector';
@@ -43,7 +43,7 @@ const escapeRegExp = (str: string) => {
   return str.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&');
 };
 
-const avoidInline = (em: EditorModel) => em && em.getConfig().avoidInlineStyle;
+export const avoidInline = (em: EditorModel) => !!em?.getConfig().avoidInlineStyle;
 
 export const eventDrag = 'component:drag';
 export const keySymbols = '__symbols';
@@ -170,6 +170,18 @@ export default class Component extends StyleableModel<ComponentProperties> {
 
   get traits() {
     return this.get('traits')!;
+  }
+
+  get content() {
+    return this.get('content') ?? '';
+  }
+
+  get toolbar() {
+    return this.get('toolbar') || [];
+  }
+
+  get resizable() {
+    return this.get('resizable')!;
   }
 
   /**
@@ -566,11 +578,11 @@ export default class Component extends StyleableModel<ComponentProperties> {
    * @return {Object}
    */
   getStyle(options: any = {}, optsAdd: any = {}) {
-    const em = this.em;
+    const { em } = this;
     const prop = isString(options) ? options : '';
     const opts = prop ? optsAdd : options;
 
-    if (em && em.getConfig().avoidInlineStyle && !opts.inline) {
+    if (avoidInline(em) && !opts.inline) {
       const state = em.get('state');
       const cc = em.Css;
       const rule = cc.getIdRule(this.getId(), { state, ...opts });
@@ -591,23 +603,22 @@ export default class Component extends StyleableModel<ComponentProperties> {
    * @example
    * component.setStyle({ color: 'red' });
    */
-  setStyle(prop: ObjectStrings = {}, opts: any = {}) {
+  setStyle(prop: StyleProps = {}, opts: any = {}) {
     const { opt, em } = this;
 
-    if (em && em.getConfig().avoidInlineStyle && !opt.temporary && !opts.inline) {
+    if (avoidInline(em) && !opt.temporary && !opts.inline) {
       const style = this.get('style') || {};
       prop = isString(prop) ? this.parseStyle(prop) : prop;
       prop = { ...prop, ...style };
       const state = em.get('state');
       const cc = em.Css;
       const propOrig = this.getStyle(opts);
-      this.rule = cc.setIdRule(this.getId(), prop, { ...opts, state });
+      this.rule = cc.setIdRule(this.getId(), prop, { state, ...opts });
       const diff = shallowDiff(propOrig, prop);
       this.set('style', '', { silent: true });
       keys(diff).forEach(pr => this.trigger(`change:style:${pr}`));
     } else {
-      // @ts-ignore
-      prop = super.setStyle.apply(this, arguments);
+      prop = super.setStyle.apply(this, arguments as any);
     }
 
     return prop;
@@ -642,19 +653,17 @@ export default class Component extends StyleableModel<ComponentProperties> {
 
     // Check if we need an ID on the component
     if (!has(attributes, 'id')) {
-      let addId;
+      let addId = false;
 
       // If we don't rely on inline styling we have to check
       // for the ID selector
-      if (avoidInline(em)) {
-        addId = sm && sm.get(id, sm.Selector.TYPE_ID);
-      } else if (!isEmpty(this.getStyle())) {
-        addId = 1;
+      if (avoidInline(em) || !isEmpty(this.getStyle())) {
+        addId = !!sm?.get(id, sm.Selector.TYPE_ID);
       }
 
       // Symbols should always have an id
       if (this.__getSymbol() || this.__getSymbols()) {
-        addId = 1;
+        addId = true;
       }
 
       if (addId) {
@@ -982,9 +991,9 @@ export default class Component extends StyleableModel<ComponentProperties> {
 
   initClasses(m?: any, c?: any, opts: any = {}) {
     const event = 'change:classes';
-    const attrCls = this.get('attributes')!.class || [];
+    const { class: attrCls, ...restAttr } = this.get('attributes') || {};
     const toListen = [this, event, this.initClasses];
-    const cls = this.get('classes') || attrCls;
+    const cls = this.get('classes') || attrCls || [];
     const clsArr = isString(cls) ? cls.split(' ') : cls;
     this.stopListening(...toListen);
     const classes = this.normalizeClasses(clsArr);
@@ -992,6 +1001,8 @@ export default class Component extends StyleableModel<ComponentProperties> {
     this.set('classes', selectors, opts);
     selectors.add(classes);
     selectors.on('add remove reset', this.__upSymbCls);
+    // Clear attributes from classes
+    attrCls && classes.length && this.set('attributes', restAttr);
     // @ts-ignore
     this.listenTo(...toListen);
     return this;
@@ -1591,7 +1602,7 @@ export default class Component extends StyleableModel<ComponentProperties> {
 
   __innerHTML(opts: ToHTMLOptions = {}) {
     const cmps = this.components();
-    return !cmps.length ? this.get('content') : cmps.map(c => c.toHTML(opts)).join('');
+    return !cmps.length ? this.content : cmps.map(c => c.toHTML(opts)).join('');
   }
 
   /**
@@ -1600,9 +1611,13 @@ export default class Component extends StyleableModel<ComponentProperties> {
    * @private
    */
   getAttrToHTML() {
-    var attr = this.getAttributes();
-    delete attr.style;
-    return attr;
+    const attrs = this.getAttributes();
+
+    if (avoidInline(this.em)) {
+      delete attrs.style;
+    }
+
+    return attrs;
   }
 
   /**
@@ -1698,7 +1713,7 @@ export default class Component extends StyleableModel<ComponentProperties> {
    * @param {Frame} frame Specific frame from which taking the element
    * @return {HTMLElement}
    */
-  getEl(frame = undefined) {
+  getEl(frame?: Frame) {
     const view = this.getView(frame);
     return view && view.el;
   }
@@ -1710,17 +1725,19 @@ export default class Component extends StyleableModel<ComponentProperties> {
    * @return {ComponentView}
    */
   getView(frame?: Frame) {
-    let { view, views } = this;
+    let { view, views, em } = this;
+    const frm = frame || em?.getCurrentFrameModel();
 
-    if (frame) {
-      view = views.filter(view => view._getFrame() === frame.view)[0];
+    if (frm) {
+      view = views.filter(view => view.frameView === frm.view)[0];
     }
 
     return view;
   }
 
   getCurrentView() {
-    const frame = (this.em.get('currentFrame') || {}).model;
+    const frameView = this.em.getCurrentFrame();
+    const frame = frameView?.model;
     return this.getView(frame);
   }
 
@@ -1752,16 +1769,16 @@ export default class Component extends StyleableModel<ComponentProperties> {
     } else {
       // Deprecated
       // Need to convert script functions to strings
-      if (typeof scr == 'function') {
-        var scrStr = scr.toString().trim();
-        scrStr = scrStr.replace(/^function[\s\w]*\(\)\s?\{/, '').replace(/\}$/, '');
+      if (isFunction(scr)) {
+        let scrStr = scr.toString().trim();
+        scrStr = scrStr.slice(scrStr.indexOf('{') + 1, scrStr.lastIndexOf('}'));
         scr = scrStr.trim();
       }
 
-      var config = this.em.getConfig();
-      var tagVarStart = escapeRegExp(config.tagVarStart || '{[ ');
-      var tagVarEnd = escapeRegExp(config.tagVarEnd || ' ]}');
-      var reg = new RegExp(`${tagVarStart}([\\w\\d-]*)${tagVarEnd}`, 'g');
+      const config = this.em.getConfig();
+      const tagVarStart = escapeRegExp(config.tagVarStart || '{[ ');
+      const tagVarEnd = escapeRegExp(config.tagVarEnd || ' ]}');
+      const reg = new RegExp(`${tagVarStart}([\\w\\d-]*)${tagVarEnd}`, 'g');
       scr = scr.replace(reg, (match, v) => {
         // If at least one match is found I have to track this change for a
         // better optimization inside JS generator

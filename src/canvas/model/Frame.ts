@@ -1,14 +1,30 @@
-import { result, forEach, isEmpty, isString } from 'underscore';
-import { ModuleModel } from '../../abstract';
+import { forEach, isEmpty, isNumber, isString, result } from 'underscore';
 import CanvasModule from '..';
+import { ModuleModel } from '../../abstract';
+import { BoxRect } from '../../common';
 import ComponentWrapper from '../../dom_components/model/ComponentWrapper';
-import { isComponent, isObject } from '../../utils/mixins';
+import Page from '../../pages/model/Page';
+import { createId, isComponent, isObject } from '../../utils/mixins';
 import FrameView from '../view/FrameView';
 import Frames from './Frames';
-import Page from '../../pages/model/Page';
 
 const keyAutoW = '__aw';
 const keyAutoH = '__ah';
+
+const getDimension = (frame: Frame, type: 'width' | 'height') => {
+  const dim = frame.get(type);
+  const viewDim = frame.view?.el[type === 'width' ? 'offsetWidth' : 'offsetHeight'];
+
+  if (isNumber(dim)) {
+    return dim;
+  } else if (isString(dim) && dim.endsWith('px')) {
+    return parseFloat(dim);
+  } else if (viewDim) {
+    return viewDim;
+  } else {
+    return 0;
+  }
+};
 
 /**
  * @property {Object|String} component Wrapper component definition. You can also pass an HTML string as components of the default wrapper component.
@@ -30,6 +46,7 @@ export default class Frame extends ModuleModel<CanvasModule> {
       head: [],
       component: '',
       styles: '',
+      refFrame: null,
       _undo: true,
       _undoexc: ['changesCount'],
     };
@@ -85,14 +102,53 @@ export default class Frame extends ModuleModel<CanvasModule> {
 
     !attr.width && this.set(keyAutoW, 1);
     !attr.height && this.set(keyAutoH, 1);
+
+    !this.id && this.set('id', createId());
+  }
+
+  get width() {
+    return getDimension(this, 'width');
+  }
+
+  get height() {
+    return getDimension(this, 'height');
   }
 
   get head(): { tag: string; attributes: any }[] {
     return this.get('head');
   }
 
+  get refFrame(): Frame | undefined {
+    return this.get('refFrame');
+  }
+
+  get root() {
+    const { refFrame } = this;
+    return refFrame?.getComponent() || this.getComponent();
+  }
+
+  initRefs() {
+    const { refFrame } = this;
+    if (isString(refFrame)) {
+      const frame = this.module.framesById[refFrame];
+      frame && this.set({ refFrame: frame }, { silent: true });
+    }
+  }
+
+  getBoxRect(): BoxRect {
+    const { x, y } = this.attributes;
+    const { width, height } = this;
+
+    return {
+      x,
+      y,
+      width,
+      height,
+    };
+  }
+
   onRemove() {
-    this.getComponent().remove({ root: 1 });
+    !this.refFrame && this.getComponent().remove({ root: 1 });
   }
 
   changesUp(opt: any = {}) {
@@ -115,6 +171,7 @@ export default class Frame extends ModuleModel<CanvasModule> {
   }
 
   remove() {
+    this.view?.remove();
     this.view = undefined;
     const coll = this.collection;
     return coll && coll.remove(this);
@@ -182,6 +239,16 @@ export default class Frame extends ModuleModel<CanvasModule> {
     this.em.trigger('frame:updated', { frame: this, ...data });
   }
 
+  hasAutoHeight() {
+    const { height } = this.attributes;
+
+    if (height === 'auto' || this.config.infiniteCanvas) {
+      return true;
+    }
+
+    return false;
+  }
+
   toJSON(opts: any = {}) {
     const obj = ModuleModel.prototype.toJSON.call(this, opts);
     const defaults = result(this, 'defaults');
@@ -191,6 +258,11 @@ export default class Frame extends ModuleModel<CanvasModule> {
     delete obj.changesCount;
     obj[keyAutoW] && delete obj.width;
     obj[keyAutoH] && delete obj.height;
+
+    if (obj.refFrame) {
+      obj.refFrame = obj.refFrame.id;
+      delete obj.component;
+    }
 
     // Remove private keys
     forEach(obj, (value, key) => {

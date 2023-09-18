@@ -1,10 +1,20 @@
-import { isString, isArray, keys } from 'underscore';
-import { shallowDiff } from '../../utils/mixins';
+import { isArray, isString, keys } from 'underscore';
+import { Model, ObjectAny, ObjectHash } from '../../common';
 import ParserHtml from '../../parser/model/ParserHtml';
-import { Model, ObjectAny, ObjectHash, ObjectStrings } from '../../common';
 import Selectors from '../../selector_manager/model/Selectors';
+import { shallowDiff } from '../../utils/mixins';
+
+export type StyleProps = Record<string, string | string[]>;
+
+export type UpdateStyleOptions = ObjectAny & {
+  partial?: boolean;
+};
 
 const parserHtml = ParserHtml();
+
+export const getLastStyleValue = (value: string | string[]) => {
+  return isArray(value) ? value[value.length - 1] : value;
+};
 
 export default class StyleableModel<T extends ObjectHash = any> extends Model<T> {
   /**
@@ -30,7 +40,7 @@ export default class StyleableModel<T extends ObjectHash = any> extends Model<T>
    * Get style object
    * @return {Object}
    */
-  getStyle(prop?: string | ObjectAny): ObjectStrings {
+  getStyle(prop?: string | ObjectAny): StyleProps {
     const style = this.get('style') || {};
     const result: ObjectAny = { ...style };
     return prop && isString(prop) ? result[prop] : result;
@@ -42,12 +52,20 @@ export default class StyleableModel<T extends ObjectHash = any> extends Model<T>
    * @param {Object} opts
    * @return {Object} Applied properties
    */
-  setStyle(prop: string | ObjectAny = {}, opts: ObjectAny = {}) {
+  setStyle(prop: string | ObjectAny = {}, opts: UpdateStyleOptions = {}) {
     if (isString(prop)) {
       prop = this.parseStyle(prop);
     }
 
     const propOrig = this.getStyle(opts);
+
+    if (opts.partial || opts.avoidStore) {
+      opts.avoidStore = true;
+      prop.__p = true;
+    } else {
+      delete prop.__p;
+    }
+
     const propNew = { ...prop };
     const newStyle = { ...propNew };
     // Remove empty style properties
@@ -56,7 +74,7 @@ export default class StyleableModel<T extends ObjectHash = any> extends Model<T>
         delete newStyle[prop];
       }
     });
-    this.set('style', newStyle, opts);
+    this.set('style', newStyle, opts as any);
     const diff = shallowDiff(propOrig, propNew);
     // Delete the property used for partial updates
     delete diff.__p;
@@ -82,7 +100,7 @@ export default class StyleableModel<T extends ObjectHash = any> extends Model<T>
    * this.addStyle({color: 'red'});
    * this.addStyle('color', 'blue');
    */
-  addStyle(prop: string | ObjectAny, value = '', opts = {}) {
+  addStyle(prop: string | ObjectAny, value: any = '', opts: UpdateStyleOptions = {}) {
     if (typeof prop == 'string') {
       prop = {
         [prop]: value,
@@ -111,15 +129,24 @@ export default class StyleableModel<T extends ObjectHash = any> extends Model<T>
    * @return {String}
    */
   styleToString(opts: ObjectAny = {}) {
-    const result = [];
+    const result: string[] = [];
     const style = this.getStyle(opts);
+    const imp = opts.important;
 
     for (let prop in style) {
-      const imp = opts.important;
       const important = isArray(imp) ? imp.indexOf(prop) >= 0 : imp;
-      const value = `${style[prop]}${important ? ' !important' : ''}`;
-      const propPrv = prop.substr(0, 2) == '__';
-      value && !propPrv && result.push(`${prop}:${value};`);
+      const firstChars = prop.substring(0, 2);
+      const isPrivate = firstChars === '__';
+
+      if (isPrivate) continue;
+
+      const value = style[prop];
+      const values = isArray(value) ? (value as string[]) : [value];
+
+      values.forEach((val: string) => {
+        const value = `${val}${important ? ' !important' : ''}`;
+        value && result.push(`${prop}:${value};`);
+      });
     }
 
     return result.join('');
