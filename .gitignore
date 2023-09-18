@@ -21,3 +21,5 @@ bower_components/
 grapesjs-*.tgz
 _index.html
 docs/.vuepress/dist
+
+dist/
