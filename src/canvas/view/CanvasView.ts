@@ -35,6 +35,7 @@ export type ElementPosOpts = {
   avoidFrameOffset?: boolean;
   avoidFrameZoom?: boolean;
   noScroll?: boolean;
+  nativeBoundingRect?: boolean;
 };
 
 export interface FitViewportOptions {
@@ -454,7 +455,7 @@ export default class CanvasView extends ModuleView<Canvas> {
       const frame = this.frame?.el;
       const winEl = el?.ownerDocument.defaultView;
       const frEl = winEl ? (winEl.frameElement as HTMLElement) : frame;
-      this.frmOff = this.offset(frEl || frame);
+      this.frmOff = this.offset(frEl || frame, { nativeBoundingRect: true });
     }
     return this.frmOff;
   }
@@ -545,9 +546,16 @@ export default class CanvasView extends ModuleView<Canvas> {
     const co = this.getCanvasOffset();
     const { noScroll } = opts;
 
+    // console.table({
+    //   cot: co.top,
+    //   col: co.left,
+    //   fot: fo.top,
+    //   fol: fo.left
+    // });
+
     return {
-      top: fo.top + (noScroll ? 0 : bEl.scrollTop) * zoom - co.top,
-      left: fo.left + (noScroll ? 0 : bEl.scrollLeft) * zoom - co.left,
+      top: fo.top + (noScroll ? 0 : bEl.scrollTop) - co.top,
+      left: fo.left + (noScroll ? 0 : bEl.scrollLeft) - co.left,
       width: co.width,
       height: co.height,
     };

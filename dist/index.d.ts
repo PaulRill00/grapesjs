@@ -1060,6 +1060,7 @@ export type ElementPosOpts = {
 	avoidFrameOffset?: boolean;
 	avoidFrameZoom?: boolean;
 	noScroll?: boolean;
+	nativeBoundingRect?: boolean;
 };
 export interface FitViewportOptions {
 	frame?: Frame;
@@ -2130,6 +2131,13 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 */
 	offset(el: HTMLElement): {
 		top: number;
+		/**
+		 *
+		 * @param {HTMLElement} el The component element in the canvas
+		 * @param {HTMLElement} targetEl The target element to position (eg. toolbar)
+		 * @param {Object} opts
+		 * @private
+		 */
 		left: number;
 		width: number;
 		height: number;
@@ -2157,6 +2165,13 @@ declare class CanvasModule extends Module<CanvasConfig> {
 		zoom: number;
 		rect: {
 			top: number;
+			/**
+			 *
+			 * @param {HTMLElement} el The component element in the canvas
+			 * @param {HTMLElement} targetEl The target element to position (eg. toolbar)
+			 * @param {Object} opts
+			 * @private
+			 */
 			left: number;
 			width: number;
 			height: number;
@@ -2255,10 +2270,7 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * @return {Object}
 	 * @private
 	 */
-	getMouseRelativeCanvas(ev: MouseEvent, opts: any): {
-		y: number;
-		x: number;
-	};
+	getMouseRelativeCanvas(ev: MouseEvent, opts: any): Position;
 	/**
 	 * Check if the canvas is focused
 	 * @returns {Boolean}
@@ -2290,12 +2302,12 @@ declare class CanvasModule extends Module<CanvasConfig> {
 	 * Start autoscroll
 	 * @private
 	 */
-	startAutoscroll(frame: Frame): void;
+	startAutoscroll(frame?: Frame): void;
 	/**
 	 * Stop autoscroll
 	 * @private
 	 */
-	stopAutoscroll(frame: Frame): void;
+	stopAutoscroll(frame?: Frame): void;
 	/**
 	 * Set canvas zoom value
 	 * @param {Number} value The zoom value, from 0 to 100
@@ -3955,7 +3967,7 @@ export interface RichTextEditorConfig {
 }
 export interface RichTextEditorAction {
 	name: string;
-	icon: string;
+	icon: string | HTMLElement;
 	event?: string;
 	attributes?: Record<string, any>;
 	result: (rte: RichTextEditor, action: RichTextEditorAction) => void;
@@ -4785,6 +4797,7 @@ export interface IComponent extends ExtractMethods<Component> {
  * @property {Boolean} [highlightable=true] It can be highlighted with 'dotted' borders if true. Default: `true`
  * @property {Boolean} [copyable=true] True if it's possible to clone the component. Default: `true`
  * @property {Boolean} [resizable=false] Indicates if it's possible to resize the component. It's also possible to pass an object as [options for the Resizer](https://github.com/GrapesJS/grapesjs/blob/master/src/utils/Resizer.js). Default: `false`
+ * @property {Boolean} [rotatable=false] Indicates if it's possible to rotate the component. Default: `false`
  * @property {Boolean} [editable=false] Allow to edit the content of the component (used on Text components). Default: `false`
  * @property {Boolean} [layerable=true] Set to `false` if you need to hide the component inside Layers. Default: `true`
  * @property {Boolean} [selectable=true] Allow component to be selected when clicked. Default: `true`
@@ -9335,10 +9348,10 @@ declare class SelectorManager extends ItemManagerModule<SelectorManagerConfig & 
 declare const ParserCss: (em?: EditorModel, config?: ParserConfig) => {
 	/**
 	 * Parse CSS string to a desired model object
-	 * @param  {String} str CSS string
+	 * @param  {String} input CSS string
 	 * @return {Array<Object>}
 	 */
-	parse(str: string): CssRuleJSON[];
+	parse(input: string): CssRuleJSON[];
 	/**
 	 * Check the returned node from a custom parser and transforms it to
 	 * a valid object for the CSS composer
@@ -10924,9 +10937,236 @@ declare class Sorter extends View {
 	 * */
 	rollback(e: any): void;
 }
+export type RectDimRotator = {
+	w: number;
+	h: number;
+	t: number;
+	l: number;
+	r: number;
+};
+export type BoundingRectRotator = {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+};
+export type CallbackOptionsRotator = {
+	docs: any;
+	config: any;
+	el: HTMLElement;
+	rotator: Rotator;
+};
+export interface RotatorOptions {
+	/**
+	 * Function which returns custom X and Y coordinates of the mouse.
+	 */
+	mousePosFetcher?: (ev: MouseEvent) => Position;
+	/**
+	 * Indicates custom target updating strategy.
+	 */
+	updateTarget?: (el: HTMLElement, rect: RectDimRotator, opts: any) => void;
+	/**
+	 * Function which gets HTMLElement as an arg and returns it relative position
+	 */
+	posFetcher?: (el: HTMLElement, opts: any) => BoundingRectRotator;
+	/**
+	 * On rotate start callback.
+	 */
+	onStart?: (ev: Event, opts: CallbackOptionsRotator) => void;
+	/**
+	 * On rotate move callback.
+	 */
+	onMove?: (ev: Event) => void;
+	/**
+	 * On rotate end callback.
+	 */
+	onEnd?: (ev: Event, opts: CallbackOptionsRotator) => void;
+	/**
+	 * On container update callback.
+	 */
+	onUpdateContainer?: (opts: any) => void;
+	/**
+	 * Rotate unit step.
+	 * @default 1
+	 */
+	step?: number;
+	/**
+	 * Minimum dimension.
+	 * @default 10
+	 */
+	minDim?: number;
+	/**
+	 * Maximum dimension.
+	 * @default Infinity
+	 */
+	maxDim?: number;
+	/**
+	 * If true, will override unitHeight and unitWidth, on start, with units
+	 * from the current focused element (currently used only in SelectComponent).
+	 * @default true
+	 */
+	currentUnit?: boolean;
+	/**
+	 * With this option enabled the mousemove event won't be altered when the pointer comes over iframes.
+	 * @default false
+	 */
+	silentFrames?: boolean;
+	/**
+	 * If true the container of handlers won't be updated.
+	 * @default false
+	 */
+	avoidContainerUpdate?: boolean;
+	/**
+	 * Class prefix.
+	 */
+	prefix?: string;
+	/**
+	 * Where to append rotate container (default body element).
+	 */
+	appendTo?: HTMLElement;
+	/**
+	 * Offset before snap to guides.
+	 * @default 5
+	 */
+	snapOffset?: number;
+	/**
+	 * Offset before snap to guides.
+	 * @default 45
+	 */
+	snapPoints?: number;
+}
+declare class Rotator {
+	defOpts: RotatorOptions;
+	opts: RotatorOptions;
+	container?: HTMLElement;
+	handler?: HTMLElement;
+	el?: HTMLElement;
+	selectedHandler?: HTMLElement;
+	handlerAttr?: string;
+	center?: Position;
+	startDim?: RectDimRotator;
+	rectDim?: RectDimRotator;
+	delta?: Position;
+	startPos?: Position;
+	currentPos?: Position;
+	docs?: Document[];
+	snapOffset?: number;
+	snapPoints?: number;
+	mousePosFetcher?: RotatorOptions["mousePosFetcher"];
+	updateTarget?: RotatorOptions["updateTarget"];
+	posFetcher?: RotatorOptions["posFetcher"];
+	onStart?: RotatorOptions["onStart"];
+	onMove?: RotatorOptions["onMove"];
+	onEnd?: RotatorOptions["onEnd"];
+	onUpdateContainer?: RotatorOptions["onUpdateContainer"];
+	/**
+	 * Init the Rotator with options
+	 * @param  {Object} options
+	 */
+	constructor(opts?: RotatorOptions);
+	/**
+	 * Get current connfiguration options
+	 * @return {Object}
+	 */
+	getConfig(): RotatorOptions;
+	/**
+	 * Setup options
+	 * @param {Object} options
+	 */
+	setOptions(options?: Partial<RotatorOptions>, reset?: boolean): void;
+	/**
+	 * Setup rotator
+	 */
+	setup(): void;
+	/**
+	 * Toggle iframes pointer event
+	 * @param {Boolean} silent If true, iframes will be silented
+	 */
+	toggleFrames(silent?: boolean): void;
+	/**
+	 * Detects if the passed element is a rotate handler
+	 * @param  {HTMLElement} el
+	 * @return {Boolean}
+	 */
+	isHandler(el: HTMLElement): boolean;
+	/**
+	 * Returns the focused element
+	 * @return {HTMLElement}
+	 */
+	getFocusedEl(): HTMLElement | undefined;
+	/**
+	 * Returns the parent of the focused element
+	 * @return {HTMLElement}
+	 */
+	getParentEl(): HTMLElement | null | undefined;
+	/**
+	 * Returns documents
+	 */
+	getDocumentEl(): Document[];
+	/**
+	 * Return element position
+	 * @param  {HTMLElement} el
+	 * @param  {Object} opts Custom options
+	 * @return {Object}
+	 */
+	getElementPos(el: HTMLElement, opts?: {}): BoundingRectRotator;
+	/**
+	 * Return element rotation
+	 * @param   {HTMLElement} el
+	 * @returns {number} rotation
+	 */
+	getElementRotation(el: HTMLElement): number;
+	/**
+	 * Focus rotator on the element, attaches handlers to it
+	 * @param {HTMLElement} el
+	 */
+	focus(el: HTMLElement): void;
+	/**
+	 * Blur from element
+	 */
+	blur(): void;
+	/**
+	 * Start rotating
+	 * @param  {Event} e
+	 */
+	start(ev: Event): void;
+	/**
+	 * While rotating
+	 * @param  {Event} e
+	 */
+	move(ev: PointerEvent | Event): void;
+	/**
+	 * Stop rotating
+	 * @param  {Event} e
+	 */
+	stop(e: Event): void;
+	/**
+	 * Update rect
+	 */
+	updateRect(store: boolean): void;
+	updateContainer(opt?: {
+		forceShow?: boolean;
+	}): void;
+	/**
+	 * Handle ESC key
+	 * @param  {Event} e
+	 */
+	handleKeyDown(e: Event): void;
+	/**
+	 * Handle mousedown to check if it's possible to start rotating
+	 * @param  {Event} e
+	 */
+	handleMouseDown(e: Event): void;
+	/**
+	 * All positioning logic
+	 * @return {Object}
+	 */
+	calc(data: Rotator): RectDimRotator | undefined;
+}
 declare class UtilsModule extends Module {
 	Sorter: typeof Sorter;
 	Resizer: typeof Resizer;
+	Rotator: typeof Rotator;
 	Dragger: typeof Dragger;
 	helpers: {
 		isDef: (value: any) => boolean;
@@ -10944,6 +11184,8 @@ declare class UtilsModule extends Module {
 		getComponentView: (el?: Node | undefined) => ComponentView | undefined;
 		getComponentModel: (el?: Node | undefined) => Component | undefined;
 		buildBase64UrlFromSvg: (svg: string) => string;
+		on: (el: HTMLElement | Window | Document | (HTMLElement | Window | Document)[], ev: string, fn: (ev: Event) => void, opts?: AddEventListenerOptions | undefined) => void;
+		off: (el: HTMLElement | Window | Document | (HTMLElement | Window | Document)[], ev: string, fn: (ev: Event) => void, opts?: AddEventListenerOptions | undefined) => void;
 		hasDnd: (em: EditorModel) => boolean;
 		upFirst: (value: string) => string;
 		matches: any;

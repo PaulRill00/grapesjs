@@ -86,11 +86,12 @@ export default {
       methods[method](win, 'resize', this.onFrameResize);
     };
     methods[method](window, 'resize', this.onFrameUpdated);
+    methods[method](window, 'rotate', this.onFrameUpdated);
     methods[method](listenToEl, 'scroll', this.onContainerChange);
     em[method]('component:toggled component:update undo redo', this.onSelect, this);
     em[method]('change:componentHovered', this.onHovered, this);
     em[method](
-      'component:resize styleable:change component:input', // component:styleUpdate
+      'component:resize component:rotate styleable:change component:input', // component:styleUpdate
       this.updateGlobalPos,
       this
     );
@@ -188,6 +189,8 @@ export default {
     // This will hide some elements from the select component
     this.updateLocalPos(result);
     this.initResize(component);
+    // @ts-ignore
+    this.initRotate(component);
   },
 
   updateGlobalPos() {
@@ -321,6 +324,7 @@ export default {
     if (!model) return;
     this.editor.select(model, { event, useValid: true });
     this.initResize(model);
+    this.initRotate(model);
   },
 
   /**
@@ -502,6 +506,110 @@ export default {
   },
 
   /**
+   * Init rotator on the element if possible
+   * @param  {HTMLElement|Component} elem
+   * @private
+   */
+  initRotate(elem: HTMLElement) {
+    const { em, canvas } = this;
+    const editor = em?.Editor;
+    const config = em?.config;
+    const pfx = config.stylePrefix || '';
+    const rotateClass = `${pfx}rotating`;
+    const model = !isElement(elem) && isTaggableNode(elem) ? elem : em.getSelected();
+    const rotatable = model && model.get('rotatable');
+    let options = {};
+    let modelToStyle: any;
+
+    var toggleBodyClass = (method: string, e: any, opts: any) => {
+      const docs = opts.docs;
+      docs &&
+        docs.forEach((doc: Document) => {
+          const body = doc.body;
+          const cls = body.className || '';
+          body.className = (method == 'add' ? `${cls} ${rotateClass}` : cls.replace(rotateClass, '')).trim();
+        });
+    };
+
+    if (editor && rotatable) {
+      const el = isElement(elem) ? elem : model.getEl();
+      options = {
+        // Here the rotator is updated with the current element height and width
+        onStart(e: Event, opts: any = {}) {
+          const { el, rotator } = opts;
+          toggleBodyClass('add', e, opts);
+          modelToStyle = em.Styles.getModelToStyle(model);
+          canvas.toggleFramesEvents(false);
+          const computedStyle = getComputedStyle(el);
+          const modelStyle = modelToStyle.getStyle();
+
+          let currentWidth = modelStyle['width'];
+          if (isNaN(parseFloat(currentWidth))) {
+            currentWidth = computedStyle['width'];
+          }
+
+          let currentHeight = modelStyle['height'];
+          if (isNaN(parseFloat(currentHeight))) {
+            currentHeight = computedStyle['height'];
+          }
+
+          let currentRotation = computedStyle.getPropertyValue('rotate')?.replace('deg', '') ?? '0';
+
+          rotator.startDim.r = parseFloat(currentRotation);
+          showOffsets = false;
+        },
+
+        // Update all positioned elements (eg. component toolbar)
+        onMove() {
+          editor.trigger('component:rotate');
+        },
+
+        onEnd(e: Event, opts: any) {
+          toggleBodyClass('remove', e, opts);
+          editor.trigger('component:rotate');
+          canvas.toggleFramesEvents(true);
+          showOffsets = true;
+        },
+
+        updateTarget(el: any, rect: any, options: any = {}) {
+          if (!modelToStyle) {
+            return;
+          }
+
+          const { store, config } = options;
+          const { keyHeight, keyWidth } = config;
+          const style: any = {};
+
+          if (em.getDragMode(model)) {
+            style.rotate = `${rect.r}deg`;
+          }
+
+          modelToStyle.addStyle(
+            {
+              ...style,
+              // value for the partial update
+              __p: !store ? 1 : '',
+            },
+            { avoidStore: !store }
+          );
+          const updateEvent = 'update:component:style';
+          const eventToListen = `${updateEvent}:${keyHeight} ${updateEvent}:${keyWidth}`;
+          em && em.trigger(eventToListen, null, null, { noEmit: 1 });
+        },
+      };
+
+      if (typeof rotatable == 'object') {
+        options = { ...options, ...rotatable, parent: options };
+      }
+
+      this.rotator = editor.runCommand('rotate', { el, options, force: 1 });
+    } else {
+      editor.stopCommand('rotate');
+      this.rotator = null;
+    }
+  },
+
+  /**
    * Update toolbar if the component has one
    * @param {Object} mod
    */
@@ -634,6 +742,7 @@ export default {
     style.left = leftOff + unit;
     style.width = pos.width + unit;
     style.height = pos.height + unit;
+    style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
 
     this._trgToolUp('local', {
       component,
@@ -684,6 +793,7 @@ export default {
     style.left = leftOff + unit;
     style.width = pos.width + unit;
     style.height = pos.height + unit;
+    style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
 
     this.updateToolbarPos({ top: targetToElem.top, left: targetToElem.left });
     this._trgToolUp('global', {
@@ -716,7 +826,7 @@ export default {
    * @private
    */
   getElementPos(el: HTMLElement) {
-    return this.canvas.getCanvasView().getElementPos(el, { noScroll: true });
+    return this.canvas.getCanvasView().getElementPos(el, { noScroll: true, nativeBoundingRect: false });
   },
 
   /**
@@ -763,5 +873,6 @@ export default {
     !opts.preserveSelected && em.setSelected();
     this.toggleToolsEl();
     editor && editor.stopCommand('resize');
+    editor && editor.stopCommand('rotate');
   },
 } as CommandObject<any, { [k: string]: any }>;

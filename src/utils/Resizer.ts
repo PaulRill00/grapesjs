@@ -489,6 +489,10 @@ export default class Resizer {
       h: parentRect.height,
     };
 
+    console.table({ name: 'startPos', ...this.startPos });
+    console.table({ name: 'startDim', ...this.startDim });
+    console.table({ name: 'parentDim', ...this.parentDim });
+
     // Listen events
     const docs = this.getDocumentEl();
     this.docs = docs;

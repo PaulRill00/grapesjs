@@ -91,6 +91,34 @@ const shallowDiff = (objOrig: ObjectAny, objNew: ObjectAny) => {
   return result;
 };
 
+const on = (
+  el: HTMLElement | Window | Document | (Window | HTMLElement | Document)[],
+  ev: string,
+  fn: (ev: Event) => void,
+  opts?: AddEventListenerOptions
+) => {
+  const evs = ev.split(/\s+/);
+  el = el instanceof Array ? el : [el];
+
+  for (let i = 0; i < evs.length; ++i) {
+    el.forEach(elem => elem && elem.addEventListener(evs[i], fn, opts));
+  }
+};
+
+const off = (
+  el: HTMLElement | Window | Document | (Window | HTMLElement | Document)[],
+  ev: string,
+  fn: (ev: Event) => void,
+  opts?: AddEventListenerOptions
+) => {
+  const evs = ev.split(/\s+/);
+  el = el instanceof Array ? el : [el];
+
+  for (let i = 0; i < evs.length; ++i) {
+    el.forEach(elem => elem && elem.removeEventListener(evs[i], fn, opts));
+  }
+};
+
 const getUnitFromValue = (value: any) => {
   return value.replace(parseFloat(value), '');
 };
@@ -189,6 +217,64 @@ const getModel = (el: any, $?: any) => {
   return model;
 };
 
+const getBoundingRect = (el: HTMLElement) => {
+  const top = el.offsetTop;
+  const left = el.offsetLeft;
+  const width = el.offsetWidth;
+  const height = el.offsetHeight;
+
+  return {
+    top,
+    left,
+    width,
+    height,
+    bottom: top + height,
+    right: left + width,
+    x: left,
+    y: top,
+  };
+};
+
+const getElRect = (el?: HTMLElement, nativeBoundingRect = true) => {
+  const def = {
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+  };
+  if (!el) return def;
+  let rectText;
+
+  if (isTextNode(el)) {
+    const range = document.createRange();
+    range.selectNode(el);
+    rectText = nativeBoundingRect ? range.getBoundingClientRect() : getBoundingRect(range as unknown as HTMLElement);
+    range.detach();
+  }
+
+  return nativeBoundingRect
+    ? rectText || (el.getBoundingClientRect ? el.getBoundingClientRect() : def)
+    : rectText || getBoundingRect(el);
+};
+
+/**
+ * Get cross-device pointer event
+ * @param  {Event} ev
+ * @return {PointerEvent}
+ */
+const getPointerEvent = (ev: Event) =>
+  // @ts-ignore
+  ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+
+/**
+ * Get cross-browser keycode
+ * @param  {Event} ev
+ * @return {Number}
+ */
+const getKeyCode = (ev: KeyboardEvent) => ev.which || ev.keyCode;
+const getKeyChar = (ev: KeyboardEvent) => String.fromCharCode(getKeyCode(ev));
+const isEscKey = (ev: KeyboardEvent) => getKeyCode(ev) === 27;
+const isEnterKey = (ev: KeyboardEvent) => getKeyCode(ev) === 13;
 const isObject = (val: any): val is ObjectAny => val && !Array.isArray(val) && typeof val === 'object';
 const isEmptyObj = (val: ObjectAny) => Object.keys(val).length <= 0;
 
@@ -234,6 +320,8 @@ export const buildBase64UrlFromSvg = (svg: string) => {
 };
 
 export {
+  on,
+  off,
   hasDnd,
   upFirst,
   matches,
