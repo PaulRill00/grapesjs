@@ -7,9 +7,6 @@
   "homepage": "http://grapesjs.com",
   "main": "dist/grapes.min.js",
   "types": "dist/index.d.ts",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
   "sideEffects": [
     "*.vue",
     "*.css",
