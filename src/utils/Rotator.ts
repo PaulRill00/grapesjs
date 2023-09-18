@@ -2,7 +2,7 @@ import { bindAll, isFunction, each } from 'underscore';
 import { Position } from '../common';
 import { on, off, normalizeFloat } from './mixins';
 
-type RectDim = {
+type RectDimRotator = {
   w: number;
   h: number;
   t: number;
@@ -10,14 +10,14 @@ type RectDim = {
   r: number;
 };
 
-type BoundingRect = {
+type BoundingRectRotator = {
   left: number;
   top: number;
   width: number;
   height: number;
 };
 
-type CallbackOptions = {
+type CallbackOptionsRotator = {
   docs: any;
   config: any;
   el: HTMLElement;
@@ -33,17 +33,17 @@ export interface RotatorOptions {
   /**
    * Indicates custom target updating strategy.
    */
-  updateTarget?: (el: HTMLElement, rect: RectDim, opts: any) => void;
+  updateTarget?: (el: HTMLElement, rect: RectDimRotator, opts: any) => void;
 
   /**
    * Function which gets HTMLElement as an arg and returns it relative position
    */
-  posFetcher?: (el: HTMLElement, opts: any) => BoundingRect;
+  posFetcher?: (el: HTMLElement, opts: any) => BoundingRectRotator;
 
   /**
    * On rotate start callback.
    */
-  onStart?: (ev: Event, opts: CallbackOptions) => void;
+  onStart?: (ev: Event, opts: CallbackOptionsRotator) => void;
 
   /**
    * On rotate move callback.
@@ -53,7 +53,7 @@ export interface RotatorOptions {
   /**
    * On rotate end callback.
    */
-  onEnd?: (ev: Event, opts: CallbackOptions) => void;
+  onEnd?: (ev: Event, opts: CallbackOptionsRotator) => void;
 
   /**
    * On container update callback.
@@ -120,7 +120,7 @@ export interface RotatorOptions {
   snapPoints?: number;
 }
 
-const getBoundingRect = (el: HTMLElement, win?: Window): BoundingRect => {
+const getBoundingRect = (el: HTMLElement, win?: Window): BoundingRectRotator => {
   var w = win || window;
 
   return {
@@ -140,8 +140,8 @@ export default class Rotator {
   selectedHandler?: HTMLElement;
   handlerAttr?: string;
   center?: Position;
-  startDim?: RectDim;
-  rectDim?: RectDim;
+  startDim?: RectDimRotator;
+  rectDim?: RectDimRotator;
   delta?: Position;
   startPos?: Position;
   currentPos?: Position;
@@ -335,7 +335,7 @@ export default class Rotator {
     const config = this.opts || {};
     const attrName = 'data-' + config.prefix + 'handler';
     const rectRotation = this.getElementRotation(el!);
-    const rect = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true, });
+    const rect = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true });
     const target = e.target as HTMLElement;
     this.handlerAttr = target.getAttribute(attrName)!;
 
@@ -364,8 +364,8 @@ export default class Rotator {
 
     const dims = this.getElementPos(el!, { target: 'el', avoidFrameZoom: true, avoidFrameOffset: true });
     this.center = {
-      x: dims.left + (dims.width / 2),
-      y: dims.top + (dims.height / 2),
+      x: dims.left + dims.width / 2,
+      y: dims.top + dims.height / 2,
     };
 
     // Listen events
@@ -402,8 +402,8 @@ export default class Rotator {
     const vX = currentPos.x - this.center!.x;
     const vY = currentPos.y - this.center!.y;
     const magV = Math.sqrt(vX * vX + vY * vY);
-    const aX = this.center!.x + vX / magV * R;
-    const aY = this.center!.y + vY / magV * R;
+    const aX = this.center!.x + (vX / magV) * R;
+    const aY = this.center!.y + (vY / magV) * R;
 
     this.delta = {
       x: aX - this.center!.x,
@@ -514,11 +514,11 @@ export default class Rotator {
    * All positioning logic
    * @return {Object}
    */
-  calc(data: Rotator): RectDim | undefined {
+  calc(data: Rotator): RectDimRotator | undefined {
     const startDim = this.startDim!;
     const deltaX = data.delta!.x;
     const deltaY = data.delta!.y;
-    const box: RectDim = {
+    const box: RectDimRotator = {
       l: startDim.l,
       t: startDim.t,
       w: startDim.w,
@@ -528,8 +528,8 @@ export default class Rotator {
 
     if (!data) return;
 
-    const angle = (Math.atan2(deltaY, deltaX) * 180 / Math.PI) + 90;
-    
+    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 90;
+
     box.r = angle;
 
     const snappingPoints = this.defOpts.snapPoints!;

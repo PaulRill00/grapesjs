@@ -91,6 +91,34 @@ const shallowDiff = (objOrig: ObjectAny, objNew: ObjectAny) => {
   return result;
 };
 
+const on = (
+  el: HTMLElement | Window | Document | (Window | HTMLElement | Document)[],
+  ev: string,
+  fn: (ev: Event) => void,
+  opts?: AddEventListenerOptions
+) => {
+  const evs = ev.split(/\s+/);
+  el = el instanceof Array ? el : [el];
+
+  for (let i = 0; i < evs.length; ++i) {
+    el.forEach(elem => elem && elem.addEventListener(evs[i], fn, opts));
+  }
+};
+
+const off = (
+  el: HTMLElement | Window | Document | (Window | HTMLElement | Document)[],
+  ev: string,
+  fn: (ev: Event) => void,
+  opts?: AddEventListenerOptions
+) => {
+  const evs = ev.split(/\s+/);
+  el = el instanceof Array ? el : [el];
+
+  for (let i = 0; i < evs.length; ++i) {
+    el.forEach(elem => elem && elem.removeEventListener(evs[i], fn, opts));
+  }
+};
+
 const getUnitFromValue = (value: any) => {
   return value.replace(parseFloat(value), '');
 };
@@ -292,6 +320,8 @@ export const buildBase64UrlFromSvg = (svg: string) => {
 };
 
 export {
+  on,
+  off,
   hasDnd,
   upFirst,
   matches,

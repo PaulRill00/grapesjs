@@ -10,7 +10,7 @@ export default {
       appendTo: canvas.getResizerEl(),
       prefix: editor.getConfig().stylePrefix,
       posFetcher: canvasView.getElementPos.bind(canvasView),
-      mousePosFetcher: canvas.getMouseRelativeCanvas.bind(canvas),
+      mousePosFetcher: (ev: MouseEvent) => canvas.getMouseRelativeCanvas(ev, {}),
       ...(opt.options || {}),
     };
     let { canvasRotator } = this;

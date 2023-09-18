@@ -30,7 +30,7 @@
 
 import { isArray, isUndefined } from 'underscore';
 import { Module } from '../abstract';
-import { AddOptions, Coordinates } from '../common';
+import { AddOptions, Coordinates, Position } from '../common';
 import Component from '../dom_components/model/Component';
 import ComponentView from '../dom_components/view/ComponentView';
 import EditorModel from '../editor/model/Editor';
@@ -497,14 +497,14 @@ export default class CanvasModule extends Module<CanvasConfig> {
    * @return {Object}
    * @private
    */
-  getMouseRelativeCanvas(ev: MouseEvent) {
+  getMouseRelativeCanvas(ev: MouseEvent, opts: any): Position {
     const zoom = this.getZoomDecimal();
     const zoomOffset = 1 / zoom;
-    const { top: frameTop = 0, left: frameLeft = 0 } = this.getCanvasView().getFrameOffset() ?? {};
+    const { top = 0, left = 0 } = this.getCanvasView().getPosition(opts) ?? {};
 
     return {
-      y: (ev.clientY - frameTop) * zoomOffset,
-      x: (ev.clientX - frameLeft) * zoomOffset,
+      y: (ev.clientY - top) * zoomOffset,
+      x: (ev.clientX - left) * zoomOffset,
     };
   }
 
