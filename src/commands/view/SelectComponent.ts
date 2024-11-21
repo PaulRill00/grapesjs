@@ -8,6 +8,25 @@ import { CommandObject } from './CommandAbstract';
 import { CanvasSpotBuiltInTypes } from '../../canvas/model/CanvasSpot';
 import { ResizerOptions } from '../../utils/Resizer';
 
+export function rotateCoordinate(
+  coordinate: { l: number; t: number },
+  rect: { l: number; t: number; w: number; h: number; r: number }
+): { l: number; t: number } {
+  const cx = rect.l + rect.w / 2;
+  const cy = rect.t + rect.h / 2;
+
+  const a = rect.r;
+  const theta = a * (Math.PI / 180);
+
+  const x = coordinate.l;
+  const y = coordinate.t;
+
+  const rx = (x - cx) * Math.cos(theta) - (y - cy) * Math.sin(theta) + cx;
+  const ry = (x - cx) * Math.sin(theta) + (y - cy) * Math.cos(theta) + cy;
+
+  return { l: rx, t: ry };
+}
+
 let showOffsets: boolean;
 /**
  * This command is responsible for show selecting components and displaying
@@ -743,6 +762,7 @@ export default {
     style.width = pos.width + unit;
     style.height = pos.height + unit;
     style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
+    style.transform = `rotate(${this.canvas.getRotationAngle()}deg)`;
 
     this._trgToolUp('local', {
       component,
@@ -794,6 +814,7 @@ export default {
     style.width = pos.width + unit;
     style.height = pos.height + unit;
     style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
+    style.transform = `rotate(${this.canvas.getRotationAngle()}deg)`;
 
     this.updateToolbarPos({ top: targetToElem.top, left: targetToElem.left });
     this._trgToolUp('global', {

@@ -11,6 +11,7 @@ export default {
       prefix: editor.getConfig().stylePrefix,
       posFetcher: canvasView.getElementPos.bind(canvasView),
       mousePosFetcher: (ev: MouseEvent) => canvas.getMouseRelativeCanvas(ev, {}),
+      rotationAngle: canvas.getRotationAngle(),
       ...(opt.options || {}),
     };
     let { canvasRotator } = this;

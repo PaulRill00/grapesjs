@@ -13,6 +13,7 @@ export default class Canvas extends ModuleModel<CanvasModule> {
       frames: [],
       rulers: false,
       zoom: 100,
+      rotationAngle: 0,
       x: 0,
       y: 0,
       // Scripts to apply on all frames

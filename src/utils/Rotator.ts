@@ -118,6 +118,8 @@ export interface RotatorOptions {
    * @default 45
    */
   snapPoints?: number;
+
+  rotationAngle?: number;
 }
 
 const getBoundingRect = (el: HTMLElement, win?: Window): BoundingRectRotator => {
@@ -353,7 +355,7 @@ export default class Rotator {
       l: rect.left,
       w: rect.width,
       h: rect.height,
-      r: rectRotation,
+      r: rectRotation - (this.opts.rotationAngle ?? 0),
     };
     this.rectDim = {
       t: rect.top,
@@ -414,7 +416,7 @@ export default class Rotator {
       shift: e.shiftKey,
       ctrl: e.ctrlKey,
       alt: e.altKey,
-    }
+    };
 
     this.rectDim = this.calc(this);
     this.updateRect(false);
@@ -534,7 +536,7 @@ export default class Rotator {
 
     if (!data) return;
 
-    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 90;
+    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 90 - (this.opts.rotationAngle ?? 0);
 
     box.r = angle;
 

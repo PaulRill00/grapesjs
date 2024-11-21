@@ -19,6 +19,7 @@ import Frame from '../model/Frame';
 import { GetBoxRectOptions, ToWorldOption } from '../types';
 import FrameView from './FrameView';
 import FramesView from './FramesView';
+import { rotateCoordinate } from '../../commands/view/SelectComponent';
 
 export interface MarginPaddingOffsets {
   marginTop?: number;
@@ -252,8 +253,9 @@ export default class CanvasView extends ModuleView<Canvas> {
     if (framesArea) {
       const { x, y } = model.attributes;
       const zoomDc = module.getZoomDecimal();
+      const rotation = module.getRotationAngle();
 
-      framesArea.style.transform = `scale(${zoomDc}) translate(${x * mpl}px, ${y * mpl}px)`;
+      framesArea.style.transform = `scale(${zoomDc}) translate(${x * mpl}px, ${y * mpl}px) rotate(${rotation}deg)`;
     }
 
     if (cvStyle) {
@@ -455,7 +457,23 @@ export default class CanvasView extends ModuleView<Canvas> {
       const frame = this.frame?.el;
       const winEl = el?.ownerDocument.defaultView;
       const frEl = winEl ? (winEl.frameElement as HTMLElement) : frame;
-      this.frmOff = this.offset(frEl || frame, { nativeBoundingRect: true });
+      const zoom = this.module.getZoomDecimal();
+      const offset = this.offset(frEl || frame, { nativeBoundingRect: true });
+      const offset2 = this.offset(frEl || frame, { nativeBoundingRect: false });
+
+      const middle = {
+        x: offset.left + offset.width / 2,
+        y: offset.top + offset.height / 2,
+      };
+
+      let width = offset2.width * zoom;
+      let height = offset2.height * zoom;
+      this.frmOff = {
+        width: width,
+        height: height,
+        top: middle.y - height / 2,
+        left: middle.x - width / 2,
+      };
     }
     return this.frmOff;
   }
@@ -486,8 +504,25 @@ export default class CanvasView extends ModuleView<Canvas> {
     const frameTop = opts.avoidFrameOffset ? 0 : frameOffset.top;
     const frameLeft = opts.avoidFrameOffset ? 0 : frameOffset.left;
 
-    const elTop = opts.avoidFrameZoom ? elRect.top : elRect.top * zoom;
-    const elLeft = opts.avoidFrameZoom ? elRect.left : elRect.left * zoom;
+    const test = rotateCoordinate(
+      {
+        l: elRect.left + elRect.width / 2,
+        t: elRect.top + elRect.height / 2,
+      },
+      {
+        l: 0,
+        t: 0,
+        w: this.frame?.model?.width ?? 0,
+        h: this.frame?.model?.height ?? 0,
+        r: this.module.getRotationAngle(),
+      }
+    );
+
+    test.l -= elRect.width / 2;
+    test.t -= elRect.height / 2;
+
+    const elTop = opts.avoidFrameZoom ? test.t : test.t * zoom;
+    const elLeft = opts.avoidFrameZoom ? test.l : test.l * zoom;
 
     const top = opts.avoidFrameOffset ? elTop : elTop + frameTop - canvasOffset.top + canvasEl.scrollTop;
     const left = opts.avoidFrameOffset ? elLeft : elLeft + frameLeft - canvasOffset.left + canvasEl.scrollLeft;
