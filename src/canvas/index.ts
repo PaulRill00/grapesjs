@@ -43,6 +43,7 @@ import Frame from './model/Frame';
 import { CanvasEvents, ToWorldOption } from './types';
 import CanvasView, { FitViewportOptions } from './view/CanvasView';
 import FrameView from './view/FrameView';
+import { rotateCoordinate } from '../utils/Rotator';
 
 export type CanvasEvent = `${CanvasEvents}`;
 
@@ -488,9 +489,26 @@ export default class CanvasModule extends Module<CanvasConfig> {
     const zoom = this.getZoomDecimal();
     const zoomOffset = 1 / zoom;
 
+    let y = (e.clientY + addTop - yOffset) * zoomOffset;
+    let x = (e.clientX + addLeft - xOffset) * zoomOffset;
+
+    const test = rotateCoordinate(
+      {
+        l: x,
+        t: y,
+      },
+      {
+        l: 0,
+        t: 0,
+        w: frame?.model?.width ?? 0,
+        h: frame?.model?.height ?? 0,
+        r: -this.getRotationAngle(),
+      }
+    );
+
     return {
-      y: (e.clientY + addTop - yOffset) * zoomOffset,
-      x: (e.clientX + addLeft - xOffset) * zoomOffset,
+      y: test.t,
+      x: test.l,
     };
   }
 
@@ -594,6 +612,14 @@ export default class CanvasModule extends Module<CanvasConfig> {
    */
   getZoom() {
     return parseFloat(this.canvas.get('zoom'));
+  }
+
+  getRotationAngle() {
+    return this.canvas.get('rotationAngle');
+  }
+
+  setRotationAngle(value: number) {
+    this.canvas.set('rotationAngle', value);
   }
 
   /**
