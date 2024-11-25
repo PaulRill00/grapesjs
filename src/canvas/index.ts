@@ -492,7 +492,7 @@ export default class CanvasModule extends Module<CanvasConfig> {
     let y = (e.clientY + addTop - yOffset) * zoomOffset;
     let x = (e.clientX + addLeft - xOffset) * zoomOffset;
 
-    const test = rotateCoordinate(
+    const rotated = rotateCoordinate(
       {
         l: x,
         t: y,
@@ -507,8 +507,8 @@ export default class CanvasModule extends Module<CanvasConfig> {
     );
 
     return {
-      y: test.t,
-      x: test.l,
+      y: rotated.t,
+      x: rotated.l,
     };
   }
 
