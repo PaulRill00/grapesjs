@@ -213,17 +213,33 @@ export interface ResizerOptions {
    * Where to append resize container (default body element).
    */
   appendTo?: HTMLElement;
+
+  rotationAngle?: number;
 }
 
-type Handlers = Record<string, HTMLElement | null>;
+const cursors = {
+  0: 'nwse-resize',
+  45: 'ns-resize',
+  90: 'nesw-resize',
+  135: 'ew-resize',
+  180: 'nwse-resize',
+  225: 'ns-resize',
+  270: 'nesw-resize',
+  315: 'ew-resize',
+} as Record<number, string>;
 
-const createHandler = (name: string, opts: { prefix?: string } = {}) => {
-  var pfx = opts.prefix || '';
-  var el = document.createElement('i');
-  el.className = pfx + 'resizer-h ' + pfx + 'resizer-h-' + name;
-  el.setAttribute('data-' + pfx + 'handler', name);
-  return el;
-};
+const rotations = {
+  tl: 0,
+  tc: 45,
+  tr: 90,
+  cl: 315,
+  cr: 135,
+  bl: 270,
+  bc: 225,
+  br: 180,
+} as const;
+
+type Handlers = Record<string, HTMLElement | null>;
 
 const getBoundingRect = (el: HTMLElement, win?: Window): BoundingRect => {
   var w = win || window;
@@ -260,6 +276,20 @@ export default class Resizer {
   onMove?: ResizerOptions['onMove'];
   onEnd?: ResizerOptions['onEnd'];
   onUpdateContainer?: ResizerOptions['onUpdateContainer'];
+
+  private createHandler(name: string, opts: { prefix?: string } = {}) {
+    var pfx = opts.prefix || '';
+    var el = document.createElement('i');
+    el.className = pfx + 'resizer-h ' + pfx + 'resizer-h-' + name;
+    el.setAttribute('data-' + pfx + 'handler', name);
+
+    let rot = rotations[name as keyof typeof rotations];
+    rot += Math.round(this.totalRotation / 45) * 45 + 3600;
+    rot %= 360;
+    el.style.cursor = cursors[rot];
+
+    return el;
+  }
 
   /**
    * Init the Resizer with options
@@ -317,6 +347,16 @@ export default class Resizer {
     this.setup();
   }
 
+  get totalRotation() {
+    let r = 0;
+    for (let el = this.container; el; el = el?.parentElement ?? undefined) {
+      const _rotate = getComputedStyle(el).rotate;
+      const rotate = (Number((_rotate === 'none' ? '0deg' : _rotate).replace('deg', '')) + 360) % 360;
+      r += rotate;
+    }
+    return r + (this.opts.rotationAngle ?? 0);
+  }
+
   /**
    * Setup resizer
    */
@@ -342,7 +382,7 @@ export default class Resizer {
     const handlers: Handlers = {};
     ['tl', 'tc', 'tr', 'cl', 'cr', 'bl', 'bc', 'br'].forEach(
       // @ts-ignore
-      hdl => (handlers[hdl] = opts[hdl] ? createHandler(hdl, opts) : null)
+      hdl => (handlers[hdl] = opts[hdl] ? this.createHandler(hdl, opts) : null)
     );
 
     for (let n in handlers) {

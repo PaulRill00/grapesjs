@@ -11,6 +11,7 @@ export default {
       prefix: editor.getConfig().stylePrefix,
       posFetcher: canvasView.getElementPos.bind(canvasView),
       mousePosFetcher: canvas.getMouseRelativePos.bind(canvas),
+      rotationAngle: canvas.getRotationAngle(),
       ...(opt.options || {}),
     };
     let { canvasResizer } = this;
