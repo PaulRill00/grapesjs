@@ -97,7 +97,7 @@ export default class CanvasView extends ModuleView<Canvas> {
     this._initFrames();
     this.listenTo(em, 'change:canvasOffset', this.clearOff);
     this.listenTo(em, 'component:selected', this.checkSelected);
-    this.listenTo(em, `${events.coords} ${events.zoom}`, this.updateFrames);
+    this.listenTo(em, `${events.coords} ${events.zoom} ${events.rotate}`, this.updateFrames);
     this.listenTo(model, 'change:frames', this._onFramesUpdate);
     this.toggleListeners(true);
   }

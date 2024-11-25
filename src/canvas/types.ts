@@ -92,6 +92,8 @@ export enum CanvasEvents {
    */
   zoom = 'canvas:zoom',
 
+  rotate = 'canvas:rotate',
+
   /**
    * @event `canvas:pointer` Canvas pointer updated.
    * @example

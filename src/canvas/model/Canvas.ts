@@ -31,6 +31,7 @@ export default class Canvas extends ModuleModel<CanvasModule> {
     super(module, { scripts, styles });
     this.set('frames', new Frames(module));
     this.on('change:zoom', this.onZoomChange);
+    this.on('change:rotationAngle', () => em.trigger(module.events.rotate));
     this.on('change:x change:y', this.onCoordsChange);
     this.on('change:pointer change:pointerScreen', this.onPointerChange);
     this.listenTo(em, `change:device ${evDeviceUpdate}`, this.updateDevice);
