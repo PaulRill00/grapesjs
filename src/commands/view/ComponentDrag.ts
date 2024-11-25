@@ -210,7 +210,12 @@ export default {
   },
 
   getElementPos(el: HTMLElement) {
-    return this.editor.Canvas.getElementPos(el, { noScroll: 1 });
+    return this.editor.Canvas.getElementPos(el, {
+      noScroll: 1,
+      avoidRotate: 1,
+      avoidFrameOffset: 1,
+      avoidFrameZoom: 1,
+    });
   },
 
   getElementGuides(el: HTMLElement) {
@@ -428,14 +433,30 @@ export default {
         const statEdge2Raw = isY ? rect.left + rect.width : rect.top + rect.height;
         const posFirst = isY ? item.y : item.x;
         const posSecond = isEdge1 ? statEdge2 : origEdge2;
-        const pos2 = `${posFirst}px`;
         const size = isEdge1 ? origEdge1 - statEdge2 : statEdge1 - origEdge2;
         const sizeRaw = isEdge1 ? origEdge1Raw - statEdge2Raw : statEdge1Raw - origEdge2Raw;
+
+        const position = this.editor.Canvas.getElementPos(origin, {
+          noScroll: 1,
+          overrideRect: {
+            top: isY ? posFirst : posSecond,
+            left: isY ? posSecond : posFirst,
+            width: isY ? size : 0,
+            height: isY ? 0 : size,
+          },
+        });
+
+        const rotationAngle = this.canvas.getRotationAngle();
+        const zoom = this.canvas.getZoomDecimal();
+
         guideInfoStyle.display = '';
-        guideInfoStyle[isY ? 'top' : 'left'] = pos2;
-        guideInfoStyle[isY ? 'left' : 'top'] = `${posSecond}px`;
-        guideInfoStyle[isY ? 'width' : 'height'] = `${size}px`;
+        guideInfoStyle.top = `${position.top}px`;
+        guideInfoStyle.left = `${position.left}px`;
+        guideInfoStyle.rotate = `${rotationAngle}deg`;
+        guideInfoStyle[isY ? 'width' : 'height'] = `${size * zoom}px`;
         elGuideInfoCnt.innerHTML = `${Math.round(sizeRaw)}px`;
+        elGuideInfoCnt.style.rotate = `${-rotationAngle}deg`;
+        elGuideInfoCnt.style.transformOrigin = isY ? '50% 100%' : '100% 50%';
         this.em.trigger(`${evName}:active`, {
           ...this.getEventOpts(),
           guide: item,

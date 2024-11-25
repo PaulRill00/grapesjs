@@ -19,6 +19,7 @@ import Frame from '../model/Frame';
 import { GetBoxRectOptions, ToWorldOption } from '../types';
 import FrameView from './FrameView';
 import FramesView from './FramesView';
+import { rotateCoordinate } from '../../utils/Rotator';
 
 export interface MarginPaddingOffsets {
   marginTop?: number;
@@ -36,6 +37,8 @@ export type ElementPosOpts = {
   avoidFrameZoom?: boolean;
   noScroll?: boolean;
   nativeBoundingRect?: boolean;
+  avoidRotate?: boolean;
+  overrideRect?: ElementRect;
 };
 
 export interface FitViewportOptions {
@@ -252,8 +255,9 @@ export default class CanvasView extends ModuleView<Canvas> {
     if (framesArea) {
       const { x, y } = model.attributes;
       const zoomDc = module.getZoomDecimal();
+      const rotation = module.getRotationAngle();
 
-      framesArea.style.transform = `scale(${zoomDc}) translate(${x * mpl}px, ${y * mpl}px)`;
+      framesArea.style.transform = `scale(${zoomDc}) translate(${x * mpl}px, ${y * mpl}px) rotate(${rotation}deg)`;
     }
 
     if (cvStyle) {
@@ -455,7 +459,26 @@ export default class CanvasView extends ModuleView<Canvas> {
       const frame = this.frame?.el;
       const winEl = el?.ownerDocument.defaultView;
       const frEl = winEl ? (winEl.frameElement as HTMLElement) : frame;
-      this.frmOff = this.offset(frEl || frame, { nativeBoundingRect: true });
+      const zoom = this.module.getZoomDecimal();
+      //Native offset has been transformed by the zoom and rotation
+      const nativeOffset = this.offset(frEl || frame, { nativeBoundingRect: true });
+      //Original offset of the element has not been transformed
+      const originalOffset = this.offset(frEl || frame, { nativeBoundingRect: false });
+
+      //We want to get the offset without the rotation
+      const middle = {
+        x: nativeOffset.left + nativeOffset.width / 2,
+        y: nativeOffset.top + nativeOffset.height / 2,
+      };
+
+      let width = originalOffset.width * zoom;
+      let height = originalOffset.height * zoom;
+      this.frmOff = {
+        width: width,
+        height: height,
+        top: middle.y - height / 2,
+        left: middle.x - width / 2,
+      };
     }
     return this.frmOff;
   }
@@ -482,12 +505,29 @@ export default class CanvasView extends ModuleView<Canvas> {
     const frameOffset = this.getFrameOffset(el);
     const canvasEl = this.el;
     const canvasOffset = this.getCanvasOffset();
-    const elRect = this.offset(el, opts);
+    const elRect = opts.overrideRect ?? this.offset(el, opts);
     const frameTop = opts.avoidFrameOffset ? 0 : frameOffset.top;
     const frameLeft = opts.avoidFrameOffset ? 0 : frameOffset.left;
 
-    const elTop = opts.avoidFrameZoom ? elRect.top : elRect.top * zoom;
-    const elLeft = opts.avoidFrameZoom ? elRect.left : elRect.left * zoom;
+    const rotated = rotateCoordinate(
+      {
+        l: elRect.left + elRect.width / 2,
+        t: elRect.top + elRect.height / 2,
+      },
+      {
+        l: 0,
+        t: 0,
+        w: this.frame?.model?.width ?? 0,
+        h: this.frame?.model?.height ?? 0,
+        r: opts.avoidRotate ? 0 : this.module.getRotationAngle(),
+      }
+    );
+
+    rotated.l -= elRect.width / 2;
+    rotated.t -= elRect.height / 2;
+
+    const elTop = opts.avoidFrameZoom ? rotated.t : rotated.t * zoom;
+    const elLeft = opts.avoidFrameZoom ? rotated.l : rotated.l * zoom;
 
     const top = opts.avoidFrameOffset ? elTop : elTop + frameTop - canvasOffset.top + canvasEl.scrollTop;
     const left = opts.avoidFrameOffset ? elLeft : elLeft + frameLeft - canvasOffset.left + canvasEl.scrollLeft;

@@ -743,6 +743,7 @@ export default {
     style.width = pos.width + unit;
     style.height = pos.height + unit;
     style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
+    style.transform = `rotate(${this.canvas.getRotationAngle()}deg)`;
 
     this._trgToolUp('local', {
       component,
@@ -794,6 +795,7 @@ export default {
     style.width = pos.width + unit;
     style.height = pos.height + unit;
     style.rotate = window.getComputedStyle(el).getPropertyValue('rotate');
+    style.transform = `rotate(${this.canvas.getRotationAngle()}deg)`;
 
     this.updateToolbarPos({ top: targetToElem.top, left: targetToElem.left });
     this._trgToolUp('global', {

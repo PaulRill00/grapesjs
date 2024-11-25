@@ -24,6 +24,25 @@ type CallbackOptionsRotator = {
   rotator: Rotator;
 };
 
+export function rotateCoordinate(
+  coordinate: Pick<RectDimRotator, 'l' | 't'>,
+  rect: RectDimRotator
+): Pick<RectDimRotator, 'l' | 't'> {
+  const cx = rect.l + rect.w / 2;
+  const cy = rect.t + rect.h / 2;
+
+  const a = rect.r;
+  const theta = a * (Math.PI / 180);
+
+  const x = coordinate.l;
+  const y = coordinate.t;
+
+  const rx = (x - cx) * Math.cos(theta) - (y - cy) * Math.sin(theta) + cx;
+  const ry = (x - cx) * Math.sin(theta) + (y - cy) * Math.cos(theta) + cy;
+
+  return { l: rx, t: ry };
+}
+
 export interface RotatorOptions {
   /**
    * Function which returns custom X and Y coordinates of the mouse.
@@ -118,6 +137,8 @@ export interface RotatorOptions {
    * @default 45
    */
   snapPoints?: number;
+
+  rotationAngle?: number;
 }
 
 const getBoundingRect = (el: HTMLElement, win?: Window): BoundingRectRotator => {
@@ -353,7 +374,7 @@ export default class Rotator {
       l: rect.left,
       w: rect.width,
       h: rect.height,
-      r: rectRotation,
+      r: rectRotation - (this.opts.rotationAngle ?? 0),
     };
     this.rectDim = {
       t: rect.top,
@@ -414,7 +435,7 @@ export default class Rotator {
       shift: e.shiftKey,
       ctrl: e.ctrlKey,
       alt: e.altKey,
-    }
+    };
 
     this.rectDim = this.calc(this);
     this.updateRect(false);
@@ -534,7 +555,7 @@ export default class Rotator {
 
     if (!data) return;
 
-    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 90;
+    const angle = (Math.atan2(deltaY, deltaX) * 180) / Math.PI + 90 - (this.opts.rotationAngle ?? 0);
 
     box.r = angle;
 
