@@ -153,10 +153,16 @@ export const isCommentNode = (el?: Node): el is Comment => el?.nodeType === Node
 export const isTaggableNode = (el?: Node) => el && !isTextNode(el) && !isCommentNode(el);
 
 export const getBoundingRect = (el: HTMLElement) => {
-  const top = el.offsetTop;
-  const left = el.offsetLeft;
+  let top = el.offsetTop;
+  let left = el.offsetLeft;
   const width = el.offsetWidth;
   const height = el.offsetHeight;
+
+  let currentEl = el;
+  while ((currentEl = currentEl.offsetParent as HTMLElement)) {
+    top += currentEl.offsetTop;
+    left += currentEl.offsetLeft;
+  }
 
   return {
     top,
@@ -168,7 +174,7 @@ export const getBoundingRect = (el: HTMLElement) => {
     x: left,
     y: top,
   };
-}
+};
 
 /**
  * Get DOMRect of the element.
