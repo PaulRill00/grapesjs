@@ -10,6 +10,7 @@ type Guide = {
   x: number;
   y: number;
   lock?: number;
+  target?: Guide;
   active?: boolean;
 };
 
@@ -272,7 +273,7 @@ export default class Dragger {
         if (this.isPointIn(trgPoint, statPoint)) {
           if (isUndefined(trgGuide)) {
             const trgValue = deltaPoint - (trgPoint - statPoint);
-            this.setGuideLock(trg, trgValue);
+            this.setGuideLock(trg, trgValue, stat);
           }
         }
       });
@@ -287,7 +288,7 @@ export default class Dragger {
       let trg = this[`trg${axis}`];
 
       if (trg && !this.isPointIn(delta[co], trg.lock)) {
-        this.setGuideLock(trg, null);
+        this.setGuideLock(trg, null, null);
         trg = null;
       }
 
@@ -308,18 +309,20 @@ export default class Dragger {
     return (src >= trg && src <= trg + ofst) || (src <= trg && src >= trg - ofst);
   }
 
-  setGuideLock(guide: Guide, value: any) {
+  setGuideLock(guide: Guide, value: any, target: Guide|null) {
     const axis = !isUndefined(guide.x) ? 'X' : 'Y';
     const trgName = `trg${axis}`;
 
     if (value !== null) {
       guide.active = true;
       guide.lock = value;
+      guide.target = target ?? undefined;
       // @ts-ignore
       this[trgName] = guide;
     } else {
       delete guide.active;
       delete guide.lock;
+      delete guide.target;
       // @ts-ignore
       delete this[trgName];
     }
